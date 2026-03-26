@@ -1,0 +1,28 @@
+PROFILES:
+  - name: zosmf_main
+    type: zosmf
+    hostname: 192.168.9.39
+    port: 443
+    protocol: https
+    encoding: IBM-1047
+    rejectunauthorized: false
+    userid: svarfun
+    password: Igel0001
+  - name: zosmf_tsy02
+    type: zosmf
+    hostname: 192.168.9.66
+    port: 443
+    protocol: https
+    encoding: IBM-1047
+    rejectunauthorized: false
+    userid: svarfun
+    password: Igel0001
+URLS:
+  - type: jobs
+    url: /zosmf/restjobs/jobs
+  - type: mfs
+    url: /zosmf/restfiles/mfs
+DEFAULTS:
+  - type: zosmf
+    name: zosmf_main
+    
