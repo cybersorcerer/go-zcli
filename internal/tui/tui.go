@@ -73,6 +73,12 @@ const (
 	MfscolumnFSMountPoint = "Mountpoint"
 	MfscolumnFSType       = "FS-Type"
 	MfscolumnFSStatus     = "Status"
+	SubsysColumnActive    = "Active"
+	SubsysColumnPrimary   = "Primary"
+	SubsysColumnDynamic   = "Dynamic"
+	SubsysColumnFuncs     = "Functions"
+	SysvarColumnValue     = "Value"
+	SysvarColumnDesc      = "Description"
 )
 
 // Generate columns based on how many are critical to show some summary
@@ -150,10 +156,21 @@ func GenerateDetailsMfsColumns() []table.Column {
 func GenerateSubsysColumns() []table.Column {
 	columns := []table.Column{
 		table.NewColumn(ColumnID, ColumnID, 3),
-		table.NewColumn(ColumnName, ColumnName, 4),
-		table.NewColumn(ColumnStatus, ColumnStatus, 8),
-		table.NewColumn(ColumnType, ColumnType, 8),
-		table.NewColumn(MfscolumnFSStatus, MfscolumnFSStatus, 10),
+		table.NewColumn(ColumnName, "Subsystem", 10).WithFiltered(true),
+		table.NewColumn(SubsysColumnActive, SubsysColumnActive, 8),
+		table.NewColumn(SubsysColumnPrimary, SubsysColumnPrimary, 8),
+		table.NewColumn(SubsysColumnDynamic, SubsysColumnDynamic, 8),
+		table.NewColumn(SubsysColumnFuncs, SubsysColumnFuncs, 40),
+	}
+	return columns
+}
+
+func GenerateSysvarColumns() []table.Column {
+	columns := []table.Column{
+		table.NewColumn(ColumnID, ColumnID, 3),
+		table.NewColumn(ColumnName, ColumnName, 30).WithFiltered(true),
+		table.NewColumn(SysvarColumnValue, SysvarColumnValue, 30).WithFiltered(true),
+		table.NewColumn(SysvarColumnDesc, SysvarColumnDesc, 50),
 	}
 	return columns
 }

@@ -193,6 +193,27 @@ func (c *Client) Delete(path string, headers map[string]string) (*Response, erro
 	return c.doRequest(req)
 }
 
+// DeleteWithBody performs a DELETE request with a JSON body.
+func (c *Client) DeleteWithBody(path string, payload interface{}, headers map[string]string) (*Response, error) {
+	url := c.BaseURL + path
+	var body io.Reader
+	if payload != nil {
+		jsonData, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal payload: %w", err)
+		}
+		body = bytes.NewReader(jsonData)
+	}
+	req, err := c.newRequest("DELETE", url, body)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	return c.doRequest(req)
+}
+
 // PutRaw performs a PUT request with a raw byte body (for job submit etc.).
 func (c *Client) PutRaw(path string, data []byte, headers map[string]string) (*Response, error) {
 	url := c.BaseURL + path

@@ -17,6 +17,7 @@ import (
 // ---------- Bubbletea messages ----------
 
 type mfsListMsg []table.Row
+type mfsErrorMsg struct{ err error }
 type mfsDetailsMsg struct {
 	data map[string]interface{}
 }
@@ -53,6 +54,9 @@ func (m mfsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.mfsTable = m.mfsTable.WithMaxTotalWidth(msg.Width).WithPageSize(msg.Height - 10)
 		m.detailTable = m.detailTable.WithMaxTotalWidth(msg.Width).WithPageSize(msg.Height - 10)
+
+	case mfsErrorMsg:
+		m.statusMsg = fmt.Sprintf("  Error: %v", msg.err)
 
 	case mfsListMsg:
 		m.mfsTable = m.mfsTable.WithRows([]table.Row(msg))
@@ -137,8 +141,11 @@ func fetchMfsList(path, fsname string) tea.Cmd {
 			query = "?fsname=" + fsname
 		}
 		resp, err := client.Get("/restfiles/mfs"+query, nil)
-		if err != nil || zosmf.CheckResponse(resp, 200) != nil {
-			return mfsListMsg(nil)
+		if err != nil {
+			return mfsErrorMsg{err: err}
+		}
+		if apiErr := zosmf.CheckResponse(resp, 200); apiErr != nil {
+			return mfsErrorMsg{err: apiErr}
 		}
 
 		var result struct {
@@ -147,7 +154,7 @@ func fetchMfsList(path, fsname string) tea.Cmd {
 				Mountpoint string `json:"mountpoint"`
 				FSTname    string `json:"fstname"`
 				Status     string `json:"status"`
-				Mode       []int  `json:"mode"`
+				Mode       []string `json:"mode"`
 				Dev        int    `json:"dev"`
 				Sysname    string `json:"sysname"`
 				Readibc    int    `json:"readibc"`
@@ -156,7 +163,7 @@ func fetchMfsList(path, fsname string) tea.Cmd {
 			} `json:"items"`
 		}
 		if err := resp.JSON(&result); err != nil {
-			return mfsListMsg(nil)
+			return mfsErrorMsg{err: fmt.Errorf("JSON parse error: %w (body: %.200s)", err, resp.BodyString())}
 		}
 
 		var rows []table.Row

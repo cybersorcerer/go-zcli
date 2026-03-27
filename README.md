@@ -10,12 +10,12 @@ zcli is a command line interface (CLI) to IBM z/OS REST services, allowing you t
 - **Filesystems** - Create, delete, mount, unmount, list z/OS UNIX filesystems (zFS)
 - **MFS** - List mounted filesystems with optional TUI browser
 - **Software** - Query SMP/E CSI, list software instances, check critical/software/fixcat updates, export, dataset listing
-- **Console** - Issue z/OS console commands
+- **Console** - Issue z/OS console commands with full support for solicited/unsolicited message detection, async mode, custom console names, and console attributes (auth, routcode, mscope, storage, auto); retrieve delayed responses and detection results
 - **TSO** - Issue TSO/E commands
 - **Topology** - List groups, sysplexes, systems; validate system/plex connectivity
 - **Notifications** - List and send z/OSMF notifications
-- **Subsystems** - List z/OS subsystems
-- **Sysvar** - Retrieve z/OS system variables
+- **Subsystems** - List MVS subsystems with optional TUI
+- **Sysvar** - Get, create, delete, import, and export z/OSMF system variables with optional TUI (including inline create and delete actions)
 - **RTD** - Retrieve runtime diagnostic data
 - **Info** - Retrieve z/OSMF server information
 - **Profile** - Display zcli connection profiles
@@ -49,6 +49,15 @@ Produces binaries in `bin/` for:
 - macOS (amd64, arm64)
 - Linux (amd64, s390x)
 - Windows (amd64)
+
+### GitHub Releases
+
+When a version tag (e.g. `v0.4.0`) is pushed, GitHub Actions automatically builds all platform binaries and creates a release with the artifacts attached.
+
+```bash
+git tag v0.4.0
+git push origin v0.4.0
+```
 
 ## Configuration
 
@@ -128,10 +137,58 @@ zcli files retrieve --zunix-file-name /u/myuser/hello.c
 zcli mfs --tui
 
 # Issue a console command
-zcli console command --command 'd a,l'
+zcli console command -c 'd a,l' --text
+
+# Issue a console command with keyword detection
+zcli console command -c 'd a,PEGASUS' --sol-key PEGASUS --text
+
+# Issue a console command asynchronously
+zcli console command -c 's PEGASUS' --async --unsol-key PEGASUS
+
+# Issue a console command with custom console and auth
+zcli console command -c 'd a,l' -n MYCONSOL --auth MASTER --routcode ALL
+
+# Retrieve a delayed console response
+zcli console get-response -k C6557643 --text
+
+# Retrieve unsolicited keyword detection result
+zcli console get-detection -k dec6800
 
 # Issue a TSO command
 zcli tso command --command 'LISTCAT'
+
+# List MVS subsystems
+zcli subsystems list
+
+# List MVS subsystems with TUI
+zcli subsystems list --tui
+
+# Filter subsystems by ID
+zcli subsystems list --ssid 'JES*'
+
+# Get system variables
+zcli sysvar get -x MAISEC -y MAIN
+
+# Get system variables with TUI (supports create and delete)
+zcli sysvar get -x MAISEC -y MAIN --tui
+
+# Create/update system variables
+zcli sysvar create -x MAISEC -y MAIN --var MYVAR=value1 --desc "My variable"
+
+# Delete system variables
+zcli sysvar delete -x MAISEC -y MAIN --var MYVAR
+
+# Export system variables to z/OS file
+zcli sysvar export -x MAISEC -y MAIN --file /u/myuser/vars.csv -w
+
+# Export and download locally
+zcli sysvar export -x MAISEC -y MAIN --file /u/myuser/vars.csv -w --local ./vars.csv
+
+# Import system variables from z/OS file
+zcli sysvar import -x MAISEC -y MAIN --file /u/myuser/vars.csv
+
+# Upload local file and import
+zcli sysvar import -x MAISEC -y MAIN --file /u/myuser/vars.csv --local ./vars.csv
 
 # Query SMP/E CSI
 zcli software query csids \
@@ -158,7 +215,7 @@ zcli --profile-name my_other_zosmf info
 
 ### TUI keyboard shortcuts
 
-The interactive TUI (Terminal User Interface) is available for `jobs ls --tui` and `mfs --tui`.
+The interactive TUI (Terminal User Interface) is available for `jobs ls`, `mfs`, `subsystems list`, and `sysvar get` (use `--tui` flag).
 
 **Jobs TUI:**
 
@@ -182,6 +239,49 @@ The interactive TUI (Terminal User Interface) is available for `jobs ls --tui` a
 | `Ctrl+P` / `Esc`    | Go back to list          |
 | `Ctrl+R`            | Refresh                  |
 | `Ctrl+C`            | Quit                     |
+
+**Subsystems TUI:**
+
+| Key        | Action   |
+| ---------- | -------- |
+| `Ctrl+R`   | Refresh  |
+| `Ctrl+C`   | Quit     |
+| `F7` / `F8` | Page up / down |
+
+**Sysvar TUI:**
+
+| Key        | Action                                      |
+| ---------- | ------------------------------------------- |
+| `Ctrl+N`   | Create / update a variable                  |
+| `Ctrl+X`   | Delete selected variable (with confirmation)|
+| `Ctrl+R`   | Refresh                                     |
+| `Ctrl+C`   | Quit                                        |
+| `Tab` / `Esc` | Navigate form / cancel                   |
+| `F7` / `F8` | Page up / down                             |
+
+## Console command flags
+
+The `console command` subcommand supports the full z/OSMF REST Console API:
+
+| Flag                    | Description |
+| ----------------------- | ----------- |
+| `--command/-c`          | z/OS command to issue (required) |
+| `--console-name/-n`     | EMCS console name, 2-8 chars (default: `defcn`) |
+| `--async/-a`            | Issue command asynchronously |
+| `--system/-s`           | Target system in the sysplex |
+| `--sol-key`             | Keyword to detect in command response |
+| `--sol-key-regex`       | Treat sol-key as a regular expression |
+| `--unsol-key`           | Keyword to detect in unsolicited messages |
+| `--unsol-key-regex`     | Treat unsol-key as a regular expression |
+| `--detect-time`         | Seconds to detect unsol-key (server default: 30) |
+| `--unsol-detect-sync`   | Detect unsol-key synchronously |
+| `--unsol-detect-timeout` | Timeout for synchronous detection (server default: 20) |
+| `--auth`                | Console authority: MASTER, ALL, INFO, CONS, IO, SYS |
+| `--routcode`            | Routing codes: ALL, NONE, or list |
+| `--mscope`              | Message scope: ALL, LOCAL, or system names |
+| `--storage`             | Storage in KB for message queuing (1-2000) |
+| `--auto`                | Automation: YES or NO |
+| `--text`                | Format response as readable text |
 
 ## Build
 
