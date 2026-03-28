@@ -5,12 +5,12 @@ zcli is a command line interface (CLI) to IBM z/OS REST services, allowing you t
 ## Features
 
 - **Jobs** - List, submit, cancel, hold, release, change class; browse spool files in a TUI
-- **Datasets** - List, read, create, delete, rename; utilities (hrecall, hmigrate, hdelete)
+- **Datasets** - List, read, create, delete; list members; utilities (copy, rename, hrecall, hmigrate, hdelete, AMS)
 - **Files** - List, retrieve, write, create, delete z/OS UNIX files; chmod, chown, chtag, extattr
 - **Filesystems** - Create, delete, mount, unmount, list z/OS UNIX filesystems (zFS)
 - **MFS** - List mounted filesystems with optional TUI browser
 - **Software** - Query SMP/E CSI, list software instances, check critical/software/fixcat updates, export, dataset listing
-- **Console** - Issue z/OS console commands with full support for solicited/unsolicited message detection, async mode, custom console names, and console attributes (auth, routcode, mscope, storage, auto); retrieve delayed responses and detection results
+- **Console** - Issue z/OS console commands with full support for solicited/unsolicited message detection, async mode, custom console names, and console attributes (auth, routcode, mscope, storage, auto); retrieve delayed responses, detection results, and hardcopy logs
 - **TSO** - Issue TSO/E commands
 - **Topology** - List groups, sysplexes, systems; validate system/plex connectivity
 - **Notifications** - List and send z/OSMF notifications
@@ -49,6 +49,14 @@ Produces binaries in `bin/` for:
 - macOS (amd64, arm64)
 - Linux (amd64, s390x)
 - Windows (amd64)
+
+### Build on z/OS
+
+Cross-compilation for z/OS is not supported. Build natively on z/OS:
+
+```bash
+go build -ldflags '-X main.version=v0.4.0 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .
+```
 
 ### GitHub Releases
 
@@ -124,8 +132,91 @@ zcli jobs submit --file-name /path/to/job.jcl
 # List datasets
 zcli datasets list --dsn-level 'MYUSER.**'
 
+# List datasets with volume filter
+zcli datasets list --dsn-level 'SYS1.**' --volser SYSRES
+
+# List datasets with custom attributes and max items
+zcli datasets list --dsn-level 'MYUSER.**' --attributes base --max-items 50
+
+# List members of a PDS
+zcli datasets members --ds-name 'SYS1.PROCLIB'
+
+# List members with base attributes
+zcli datasets members --ds-name 'SYS1.PROCLIB' --attributes base,total
+
+# List members with pattern filter
+zcli datasets members --ds-name 'SYS1.PROCLIB' --pattern 'IEF*' --max-items 20
+
 # Read a dataset member
 zcli datasets read --ds-name 'MYUSER.JCL' --member-name TESTJOB
+
+# Read as binary
+zcli datasets read --ds-name 'MYUSER.LOAD' --member-name MYPROG --data-type binary
+
+# Read with record range (first 10 records)
+zcli datasets read --ds-name 'MYUSER.DATA' --record-range '0-9'
+
+# Search for a string in a dataset
+zcli datasets read --ds-name 'MYUSER.JCL' --member-name TESTJOB --search 'EXEC PGM'
+
+# Search with regex
+zcli datasets read --ds-name 'MYUSER.JCL' --member-name TESTJOB --research 'EXEC +PGM' --insensitive false
+
+# Read an uncataloged dataset
+zcli datasets read --ds-name 'OLD.DATA' --volser VOL001
+
+# Read with ENQ lock for editing
+zcli datasets read --ds-name 'MYUSER.DATA' --obtain-enq SHRW
+
+# Create a PDS
+zcli datasets create --ds-name 'MYUSER.NEW.PDS' --dsorg PO --recfm FB --lrecl 80
+
+# Create a sequential dataset
+zcli datasets create --ds-name 'MYUSER.NEW.SEQ' --dsorg PS --primary 20 --secondary 10
+
+# Delete a dataset
+zcli datasets delete --ds-name 'MYUSER.OLD.DATA'
+
+# Delete a PDS member
+zcli datasets delete --ds-name 'MYUSER.JCL' --member-name OLDJOB
+
+# Rename a dataset
+zcli datasets utilities rename --ds-name 'MYUSER.NEW.NAME' --from-ds-name 'MYUSER.OLD.NAME'
+
+# Rename a PDS member
+zcli datasets utilities rename --ds-name 'MYUSER.JCL' --member-name NEWMEM --from-ds-name 'MYUSER.JCL' --from-member OLDMEM
+
+# Copy a dataset
+zcli datasets utilities copy --ds-name 'MYUSER.TARGET' --from-ds-name 'MYUSER.SOURCE' --replace
+
+# Copy all members
+zcli datasets utilities copy --ds-name 'MYUSER.TARGET.PDS' --from-ds-name 'MYUSER.SOURCE.PDS' --from-member '*' --replace
+
+# Copy a single member to a new name
+zcli datasets utilities copy --ds-name 'MYUSER.PDS' --member-name NEWMEM --from-ds-name 'MYUSER.PDS' --from-member OLDMEM
+
+# Copy from a z/OS UNIX file to a dataset
+zcli datasets utilities copy --ds-name 'MYUSER.DATA' --from-file '/u/myuser/input.txt'
+
+# Recall a migrated dataset
+zcli datasets utilities hrecall --ds-name 'MYUSER.ARCHIVED' --wait
+
+# Migrate a dataset
+zcli datasets utilities hmigrate --ds-name 'MYUSER.OLDDATA'
+
+# Delete a migrated dataset backup
+zcli datasets utilities hdelete --ds-name 'MYUSER.OLDBACKUP' --purge
+
+# Invoke IDCAMS Access Method Services
+zcli datasets utilities ams \
+  --input "DEFINE CLUSTER(NAME (MYUSER.KSDS) VOLUMES(VSER05)) -" \
+  --input "DATA  (KILOBYTES (50 5))"
+
+# Delete a VSAM cluster via AMS
+zcli datasets utilities ams --input "DELETE MYUSER.KSDS CLUSTER"
+
+# AMS on a remote system
+zcli datasets utilities ams --input "LISTCAT ALL" --target-system SYSB
 
 # List z/OS UNIX files
 zcli files list --path-name /u/myuser
@@ -153,6 +244,9 @@ zcli console get-response -k C6557643 --text
 
 # Retrieve unsolicited keyword detection result
 zcli console get-detection -k dec6800
+
+# Retrieve hardcopy log entries
+zcli console log --hardcopy OPERLOG --time 2026-03-28T10:00:00Z
 
 # Issue a TSO command
 zcli tso command --command 'LISTCAT'
@@ -288,6 +382,7 @@ The `console command` subcommand supports the full z/OSMF REST Console API:
 ```bash
 make build-local    # Build for current platform
 make build          # Cross-platform build
+make build-zos      # Show z/OS native build instructions
 make install        # Install to $HOME/bin
 make clean          # Remove build artifacts
 make dep            # Download and tidy dependencies

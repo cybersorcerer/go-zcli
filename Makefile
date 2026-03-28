@@ -2,11 +2,11 @@ BINARY_NAME := zcli
 BINARY_DIR  := bin
 INSTALL_DIR := $(HOME)/bin
 
-VERSION := v0.3.0
+VERSION := v0.4.0
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
-.PHONY: build build-local run install clean dep vet lint test
+.PHONY: build build-local build-zos run install clean dep vet lint test
 
 build:
 	@mkdir -p $(BINARY_DIR)
@@ -15,6 +15,10 @@ build:
 	@GOARCH=amd64 GOOS=linux  go build -ldflags '$(LDFLAGS)' -o $(BINARY_DIR)/$(BINARY_NAME)-linux-amd64 .
 	@GOARCH=s390x GOOS=linux  go build -ldflags '$(LDFLAGS)' -o $(BINARY_DIR)/$(BINARY_NAME)-linux-s390x .
 	@GOARCH=amd64 GOOS=windows go build -ldflags '$(LDFLAGS)' -o $(BINARY_DIR)/$(BINARY_NAME)-windows.exe .
+
+build-zos:
+	@echo "Cross-compilation for z/OS is not supported."
+	@echo "Build natively on z/OS with: go build -ldflags '$(LDFLAGS)' -o $(BINARY_NAME) ."
 
 build-local:
 	@mkdir -p $(BINARY_DIR)
