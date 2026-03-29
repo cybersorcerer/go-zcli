@@ -80,7 +80,7 @@ func (m subsysModel) View() string {
 
 func (m *subsysModel) updateSubsysFooter() {
 	m.subsysTable = m.subsysTable.WithStaticFooter(fmt.Sprintf(
-		"Pg. %d/%d | ctrl+c quit | ctrl+r refresh | ↑/↓ move | f7/f8 page",
+		"Pg. %d/%d | ctrl+r refresh | ↑/↓ move | F7/F8 page | ctrl+c quit",
 		m.subsysTable.CurrentPage(), m.subsysTable.MaxPages(),
 	))
 }

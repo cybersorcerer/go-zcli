@@ -1,8 +1,29 @@
 # Changelog
 
+## v0.5.0 - 2026-03-29
+
+### New Features
+
+- **Jobs submit**: Added `--remote-file` flag for submitting JCL from a host dataset or UNIX file (sends `{"file": "..."}` JSON body); mutually exclusive with `--file-name`
+- **Jobs submit**: Auto-detection of Content-Type based on `--intrdr-mode` (text/plain for TEXT, application/octet-stream for RECORD/BINARY, application/json for remote-file)
+- **Jobs submit**: Added internal reader headers: `--intrdr-class`, `--intrdr-recfm`, `--intrdr-lrecl`, `--intrdr-mode`, `--intrdr-file-encoding`
+- **Jobs submit**: Added `--user-correlator`, `--jcl-symbol` (repeatable, NAME=VALUE format → `X-IBM-JCL-Symbol-{NAME}` headers), `--notification-url`, `--notification-options`
+- **Jobs submit**: Added `--target-system`, `--target-user`, `--target-password` for remote system targeting
+- **Jobs hold/release/cancel**: Added `--async` flag for version 1.0 asynchronous processing (default: sync v2.0)
+- **Jobs hold/release/cancel**: Added `--target-system`, `--target-user`, `--target-password` flags
+- **Jobs change-class**: Added `--async` flag (version 1.0 vs 2.0 processing)
+- **Jobs change-class**: Added `--target-system`, `--target-user`, `--target-password` flags
+- **Filesystems TUI**: Expanded create form from 3 to 11 fields — added owner, group, perms (POSIX permissions), storage class, management class, data class, volumes (comma-separated), timeout
+- **Filesystems TUI**: New `fsCreateOpts` struct and `doFsCreate` handles all optional API fields including volumes as comma-split array and timeout as query parameter
+
+### Changes
+
+- **All TUIs**: Changed `esc` key to `F3` for back/cancel actions; `esc` no longer works — updated all footer descriptions accordingly (`F3 back`, `[F3] cancel`)
+
 ## v0.4.0 - 2026-03-28
 
 ### New Features
+
 - **Console**: Full z/OSMF REST Console API support (async, sol-key, unsol-key, auth, routcode, mscope, storage, auto, custom console names)
 - **Console**: `get-response` subcommand for retrieving delayed command responses
 - **Console**: `get-detection` subcommand for unsolicited keyword detection results
@@ -23,6 +44,7 @@
 - **Build**: Added `make build-zos` target with native build instructions for z/OS
 
 ### Bug Fixes
+
 - Fixed reverse video display in CLI help output (removed `cc.Italic` from coloredcobra config)
 - Fixed MFS TUI showing "0 filesystems loaded" (`mode` field type mismatch: `[]int` -> `[]string`)
 - Fixed subsystems command using wrong API endpoint (`/restfiles/mfs` -> `/rest/mvssubs`)

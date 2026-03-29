@@ -182,8 +182,8 @@ func RemapTableKeys() table.KeyMap {
 	keys.RowUp.SetKeys("k", "up")
 	keys.ScrollRight.SetKeys("l", "right")
 	keys.ScrollLeft.SetKeys("h", "left")
-	keys.PageDown.SetKeys("ctrl+d", "f8")
-	keys.PageUp.SetKeys("ctrl+u", "f7")
+	keys.PageDown.SetKeys("f8")
+	keys.PageUp.SetKeys("f7")
 	return keys
 }
 

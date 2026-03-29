@@ -107,7 +107,7 @@ func (m jobModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, fetchJobList(m.owner, m.prefix, m.status, m.jtype))
 			}
 
-		case "ctrl+s", "enter":
+		case "enter":
 			if m.view == "jobs" {
 				row := m.jobTable.HighlightedRow()
 				m.jobname = str(row.Data[tui.JobColumnJobname])
@@ -126,7 +126,7 @@ func (m jobModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, fetchSpoolContent(m.url))
 			}
 
-		case "ctrl+p", "esc":
+		case "f3":
 			if m.view == "files" {
 				m.view = "jobs"
 				m.fileTable = m.fileTable.Focused(false)
@@ -175,6 +175,7 @@ func (m jobModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateFileFooter()
 		m.fileTable, cmd = m.fileTable.Update(msg)
 	case "spool":
+		m.updateSpoolFooter()
 		m.spoolBrowser, cmd = m.spoolBrowser.Update(msg)
 	}
 	cmds = append(cmds, cmd)
@@ -201,15 +202,22 @@ func (m jobModel) View() string {
 
 func (m *jobModel) updateJobFooter() {
 	m.jobTable = m.jobTable.WithStaticFooter(fmt.Sprintf(
-		"Pg. %d/%d | ctrl+c quit | ctrl+r refresh | ctrl+s select | ctrl+l cancel | ctrl+h hold | ctrl+e release | ↑/↓ move | f7/f8 page",
+		"Pg. %d/%d | enter select | ctrl+r refresh | ctrl+l cancel | ctrl+h hold | ctrl+e release | ↑/↓ move | F7/F8 page | ctrl+c quit",
 		m.jobTable.CurrentPage(), m.jobTable.MaxPages(),
 	))
 }
 
 func (m *jobModel) updateFileFooter() {
 	m.fileTable = m.fileTable.WithStaticFooter(fmt.Sprintf(
-		"Pg. %d/%d [%s/%s] | ctrl+s select | esc back | ctrl+c quit",
+		"Pg. %d/%d [%s/%s] | enter select | F3 back | ↑/↓ move | F7/F8 page | ctrl+c quit",
 		m.fileTable.CurrentPage(), m.fileTable.MaxPages(), m.jobname, m.jobid,
+	))
+}
+
+func (m *jobModel) updateSpoolFooter() {
+	m.spoolBrowser = m.spoolBrowser.WithStaticFooter(fmt.Sprintf(
+		"Pg. %d/%d [%s] | F3 back | ↑/↓ move | G/g bottom/top | F7/F8 page | ctrl+c quit",
+		m.spoolBrowser.CurrentPage(), m.spoolBrowser.MaxPages(), m.ddname,
 	))
 }
 
@@ -423,24 +431,31 @@ queues. Get lists of jobs and use actions like cancel, delete, hold, release and
 }
 
 var jobsListCmd = &cobra.Command{
-	Use:   "ls",
+	Use:   "list",
 	Short: "Get a list of z/OS JES Jobs, STCs and TSO Users",
 	Long: `
 DESCRIPTION
 -----------
-zcli jobs ls gets the state of jobs, stcs and/or TSO users from z/OS.
+zcli jobs list gets the state of jobs, stcs and/or TSO users from z/OS.
 You can specify filter criteria such as prefix, owner or type. If used
 with the --tui option zcli will present the resulting job list in an easy
 to read table. In TUI mode action commands like cancel, hold and release
 are available using key combinations.`,
 	Example: `
-  zcli jobs ls --tui --prefix 'TEST*'
-  zcli jobs ls --prefix 'TEST*' --status active --ojob`,
+  zcli jobs list --tui --prefix 'TEST*'
+  zcli jobs list --prefix 'TEST*' --status active --ojob`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		owner, _ := cmd.Flags().GetString("owner")
 		prefix, _ := cmd.Flags().GetString("prefix")
 		status, _ := cmd.Flags().GetString("status")
 		maxJobs, _ := cmd.Flags().GetInt("max-jobs")
+		jobID, _ := cmd.Flags().GetString("jobid")
+		userCorrelator, _ := cmd.Flags().GetString("user-correlator")
+		execData, _ := cmd.Flags().GetString("exec-data")
+		secondaryJES, _ := cmd.Flags().GetString("secondary-jes")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
 
 		jtype := "*"
 		if v, _ := cmd.Flags().GetBool("ojob"); v {
@@ -458,10 +473,45 @@ are available using key combinations.`,
 			return nil
 		}
 
-		// Non-TUI: JSON output
+		// Build query parameters
+		var params []string
+		params = append(params, "owner="+owner)
+		params = append(params, "prefix="+prefix)
+		if status != "" {
+			params = append(params, "status="+status)
+		}
+		params = append(params, fmt.Sprintf("max-jobs=%d", maxJobs))
+		if execData != "" {
+			params = append(params, "exec-data="+execData)
+		}
+		if jobID != "" {
+			params = append(params, "jobid="+jobID)
+		}
+		if userCorrelator != "" {
+			params = append(params, "user-correlator="+userCorrelator)
+		}
+
+		// Build path with optional secondary JES
+		basePath := "/restjobs/jobs"
+		if secondaryJES != "" {
+			basePath = fmt.Sprintf("/restjobs/jobs/-%s", secondaryJES)
+		}
+		path := basePath + "?" + strings.Join(params, "&")
+
+		// Build headers
+		headers := make(map[string]string)
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+		}
+		if targetPassword != "" {
+			headers["X-IBM-Target-System-Password"] = targetPassword
+		}
+
 		client := Profile.NewZosmfClient()
-		query := fmt.Sprintf("?owner=%s&prefix=%s&status=%s&exec-data=y&max-jobs=%d", owner, prefix, status, maxJobs)
-		resp, err := client.Get("/restjobs/jobs"+query, nil)
+		resp, err := client.Get(path, headers)
 		if err != nil {
 			return err
 		}
@@ -476,21 +526,42 @@ are available using key combinations.`,
 
 var jobsDDNamesCmd = &cobra.Command{
 	Use:   "ddnames",
-	Short: "List spool file DD names of a job",
+	Short: "List spool files for a job",
 	Long: `
 DESCRIPTION
 -----------
-Get spool file DD Names of a job and return them as JSON.`,
+List the spool files (DD names) for a job and return them as JSON.`,
 	Example: `
   zcli jobs ddnames --job-name TESTJOB --job-id JOB00030
-  zcli jobs ddnames --job-correlator J0003456`,
+  zcli jobs ddnames --job-correlator J0003456
+  zcli jobs ddnames --job-name TESTJOB --job-id JOB00030 --secondary-jes JES3`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client := Profile.NewZosmfClient()
-		path, err := resolveJobFilesPath(cmd)
+		secondaryJES, _ := cmd.Flags().GetString("secondary-jes")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
+
+		basePath, err := resolveJobFilesPath(cmd)
 		if err != nil {
 			return err
 		}
-		resp, err := client.Get(path, nil)
+		if secondaryJES != "" {
+			basePath = rebuildPathWithJES(basePath, secondaryJES)
+		}
+
+		headers := make(map[string]string)
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+		}
+		if targetPassword != "" {
+			headers["X-IBM-Target-System-Password"] = targetPassword
+		}
+
+		client := Profile.NewZosmfClient()
+		resp, err := client.Get(basePath, headers)
 		if err != nil {
 			return err
 		}
@@ -504,52 +575,94 @@ Get spool file DD Names of a job and return them as JSON.`,
 }
 
 var jobsFilesCmd = &cobra.Command{
-	Use:   "files",
-	Short: "Retrieve spool file content",
+	Use:   "spool",
+	Short: "Retrieve spool file content or JCL",
 	Long: `
 DESCRIPTION
 -----------
-Retrieve the content of a specific spool file by its file ID.`,
+Retrieve the content of a specific spool file by its file ID, or the submitted
+JCL by specifying --jcl. Supports text/binary/record modes, search, and
+record range filtering.`,
 	Example: `
-  zcli jobs files --job-name TESTJOB --job-id JOB00030 --file-id 3`,
+  zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3
+  zcli jobs spool --job-name TESTJOB --job-id JOB00030 --jcl
+  zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --record-range 0-99
+  zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --search 'IEF403I'
+  zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --mode binary`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileID, _ := cmd.Flags().GetInt("file-id")
-		client := Profile.NewZosmfClient()
-		basePath, err := resolveJobIdentPath(cmd)
-		if err != nil {
-			return err
-		}
-		path := fmt.Sprintf("%s/files/%d/records", basePath, fileID)
-		resp, err := client.Get(path, nil)
-		if err != nil {
-			return err
-		}
-		if apiErr := zosmf.CheckResponse(resp, 200); apiErr != nil {
-			fmt.Fprintln(os.Stderr, apiErr)
-			os.Exit(8)
-		}
-		fmt.Println(resp.BodyString())
-		return nil
-	},
-}
+		jcl, _ := cmd.Flags().GetBool("jcl")
+		mode, _ := cmd.Flags().GetString("mode")
+		fileEncoding, _ := cmd.Flags().GetString("file-encoding")
+		search, _ := cmd.Flags().GetString("search")
+		research, _ := cmd.Flags().GetString("research")
+		insensitive, _ := cmd.Flags().GetString("insensitive")
+		maxReturnSize, _ := cmd.Flags().GetString("max-return-size")
+		recordRange, _ := cmd.Flags().GetString("record-range")
+		secondaryJES, _ := cmd.Flags().GetString("secondary-jes")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
 
-var jobsJCLCmd = &cobra.Command{
-	Use:   "jcl",
-	Short: "Retrieve the JCL of a job",
-	Long: `
-DESCRIPTION
------------
-Retrieve the submitted JCL for a job.`,
-	Example: `
-  zcli jobs jcl --job-name TESTJOB --job-id JOB00030`,
-	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 		basePath, err := resolveJobIdentPath(cmd)
 		if err != nil {
 			return err
 		}
-		path := basePath + "/files/JCL/records"
-		resp, err := client.Get(path, nil)
+		if secondaryJES != "" {
+			basePath = rebuildPathWithJES(basePath, secondaryJES)
+		}
+
+		// Build file path
+		var filePart string
+		if jcl {
+			filePart = "/files/JCL/records"
+		} else {
+			filePart = fmt.Sprintf("/files/%d/records", fileID)
+		}
+
+		// Build query parameters
+		var params []string
+		if mode != "" {
+			params = append(params, "mode="+mode)
+		}
+		if fileEncoding != "" {
+			params = append(params, "fileEncoding="+fileEncoding)
+		}
+		if search != "" {
+			params = append(params, "search="+search)
+		}
+		if research != "" {
+			params = append(params, "research="+research)
+		}
+		if insensitive != "" {
+			params = append(params, "insensitive="+insensitive)
+		}
+		if maxReturnSize != "" {
+			params = append(params, "maxreturnsize="+maxReturnSize)
+		}
+
+		path := basePath + filePart
+		if len(params) > 0 {
+			path += "?" + strings.Join(params, "&")
+		}
+
+		// Build headers
+		headers := make(map[string]string)
+		if recordRange != "" {
+			headers["X-IBM-Record-Range"] = recordRange
+		}
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+		}
+		if targetPassword != "" {
+			headers["X-IBM-Target-System-Password"] = targetPassword
+		}
+
+		resp, err := client.Get(path, headers)
 		if err != nil {
 			return err
 		}
@@ -568,29 +681,116 @@ var jobsSubmitCmd = &cobra.Command{
 	Long: `
 DESCRIPTION
 -----------
-Submits a job to z/OS and returns Jobname and JobID.`,
+Submits a job to z/OS and returns Jobname and JobID. You can submit JCL
+inline from a local file (--file-name), or reference a data set or UNIX
+file on the host (--remote-file). When using --remote-file, specify a
+fully-qualified data set as "//'HLQ.JCL(MBR)'" or a UNIX path as
+"/u/myjobs/job1".
+
+JCL symbols can be passed with --jcl-symbol NAME=VALUE (repeatable).`,
 	Example: `
   zcli jobs submit --file-name /u/jobs/testjob.jcl
-  zcli jobs submit --file-name /u/jobs/testjob.jcl --secondary-jes JES3`,
+  zcli jobs submit --file-name /u/jobs/testjob.jcl --intrdr-class B
+  zcli jobs submit --remote-file "//'MYJOBS.TEST.CNTL(TESTJOBX)'"
+  zcli jobs submit --remote-file /u/myjobs/job1 --intrdr-mode TEXT
+  zcli jobs submit --file-name job.jcl --jcl-symbol MBR=ABC --jcl-symbol ENV=PROD
+  zcli jobs submit --file-name job.jcl --notification-url https://hook.example.com`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileName, _ := cmd.Flags().GetString("file-name")
+		remoteFile, _ := cmd.Flags().GetString("remote-file")
 		jesName, _ := cmd.Flags().GetString("secondary-jes")
-		inline, _ := cmd.Flags().GetBool("inline")
+		intrdrClass, _ := cmd.Flags().GetString("intrdr-class")
+		intrdrRecfm, _ := cmd.Flags().GetString("intrdr-recfm")
+		intrdrLrecl, _ := cmd.Flags().GetString("intrdr-lrecl")
+		intrdrMode, _ := cmd.Flags().GetString("intrdr-mode")
+		intrdrEncoding, _ := cmd.Flags().GetString("intrdr-file-encoding")
+		userCorrelator, _ := cmd.Flags().GetString("user-correlator")
+		jclSymbols, _ := cmd.Flags().GetStringArray("jcl-symbol")
+		notifURL, _ := cmd.Flags().GetString("notification-url")
+		notifOpts, _ := cmd.Flags().GetString("notification-options")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
 
-		data, err := os.ReadFile(fileName)
-		if err != nil {
-			return fmt.Errorf("error reading JCL file %s: %w", fileName, err)
+		if fileName == "" && remoteFile == "" {
+			return fmt.Errorf("either --file-name (local JCL) or --remote-file (host dataset/UNIX path) is required")
+		}
+		if fileName != "" && remoteFile != "" {
+			return fmt.Errorf("--file-name and --remote-file are mutually exclusive")
 		}
 
 		client := Profile.NewZosmfClient()
 		path := jobPath(jesName)
-
 		headers := map[string]string{}
-		if inline {
-			headers["Content-Type"] = "text/plain"
+
+		// Custom headers
+		if intrdrClass != "" {
+			headers["X-IBM-Intrdr-Class"] = intrdrClass
+		}
+		if intrdrRecfm != "" {
+			headers["X-IBM-Intrdr-Recfm"] = intrdrRecfm
+		}
+		if intrdrLrecl != "" {
+			headers["X-IBM-Intrdr-Lrecl"] = intrdrLrecl
+		}
+		if intrdrMode != "" {
+			headers["X-IBM-Intrdr-Mode"] = intrdrMode
+		}
+		if intrdrEncoding != "" {
+			headers["X-IBM-Intrdr-File-Encoding"] = intrdrEncoding
+		}
+		if userCorrelator != "" {
+			headers["X-IBM-User-Correlator"] = userCorrelator
+		}
+		for _, sym := range jclSymbols {
+			parts := strings.SplitN(sym, "=", 2)
+			if len(parts) != 2 {
+				return fmt.Errorf("invalid --jcl-symbol format %q, expected NAME=VALUE", sym)
+			}
+			headers["X-IBM-JCL-Symbol-"+parts[0]] = parts[1]
+		}
+		if notifURL != "" {
+			headers["X-IBM-Notification-URL"] = notifURL
+		}
+		if notifOpts != "" {
+			headers["X-IBM-Notification-Options"] = notifOpts
+		}
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+		}
+		if targetPassword != "" {
+			headers["X-IBM-Target-System-Password"] = targetPassword
 		}
 
-		resp, err := client.PutRaw(path, data, headers)
+		var resp *zosmf.Response
+		var err error
+
+		if remoteFile != "" {
+			// Submit from host dataset or UNIX file via JSON document
+			headers["Content-Type"] = "application/json"
+			payload := map[string]interface{}{
+				"file": remoteFile,
+			}
+			resp, err = client.Put(path, payload, headers)
+		} else {
+			// Submit inline JCL from local file
+			data, readErr := os.ReadFile(fileName)
+			if readErr != nil {
+				return fmt.Errorf("error reading JCL file %s: %w", fileName, readErr)
+			}
+
+			mode := strings.ToUpper(intrdrMode)
+			if mode == "RECORD" || mode == "BINARY" {
+				headers["Content-Type"] = "application/octet-stream"
+			} else {
+				headers["Content-Type"] = "text/plain"
+			}
+
+			resp, err = client.PutRaw(path, data, headers)
+		}
 		if err != nil {
 			return err
 		}
@@ -618,7 +818,12 @@ var jobsHoldCmd = &cobra.Command{
 	Long: `
 DESCRIPTION
 -----------
-Hold a job on z/OS using the z/OSMF REST API.`,
+Hold a job that has been submitted but not yet selected for processing.
+When held, a job is not eligible for selection. Identify the job by
+--job-name/--job-id or --job-correlator.
+
+By default synchronous processing (version 2.0) is used. Use --async
+for asynchronous processing (version 1.0), which returns HTTP 202 only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runJobModify(cmd, "hold")
 	},
@@ -646,6 +851,9 @@ Cancel a job currently executing on z/OS. With --purge the job output is also de
 	RunE: func(cmd *cobra.Command, args []string) error {
 		purge, _ := cmd.Flags().GetBool("purge")
 		jesName, _ := cmd.Flags().GetString("secondary-jes")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
 		client := Profile.NewZosmfClient()
 
 		if purge {
@@ -655,10 +863,18 @@ Cancel a job currently executing on z/OS. With --purge the job output is also de
 			}
 			path := basePath
 			if jesName != "" {
-				// Rebuild path with JES name prefix
 				path = rebuildPathWithJES(basePath, jesName)
 			}
 			headers := map[string]string{"X-IBM-Job-Modify-Version": "2.0"}
+			if targetSystem != "" {
+				headers["X-IBM-Target-System"] = targetSystem
+			}
+			if targetUser != "" {
+				headers["X-IBM-Target-System-User"] = targetUser
+			}
+			if targetPassword != "" {
+				headers["X-IBM-Target-System-Password"] = targetPassword
+			}
 			resp, err := client.Delete(path, headers)
 			if err != nil {
 				return err
@@ -681,10 +897,20 @@ var jobsChangeClassCmd = &cobra.Command{
 	Long: `
 DESCRIPTION
 -----------
-Change the JES job class of an existing job.`,
+Change the JES job class of an existing job. Identify the job by
+--job-name/--job-id or --job-correlator. The specified job class is
+not validated on input; verify with "zcli jobs list" afterwards.
+
+By default synchronous processing (version 2.0) is used. Use --async
+for asynchronous processing (version 1.0), which returns HTTP 202 only.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		newClass, _ := cmd.Flags().GetString("new-class")
 		jesName, _ := cmd.Flags().GetString("secondary-jes")
+		async, _ := cmd.Flags().GetBool("async")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
+
 		client := Profile.NewZosmfClient()
 		basePath, err := resolveJobIdentPath(cmd)
 		if err != nil {
@@ -694,8 +920,25 @@ Change the JES job class of an existing job.`,
 		if jesName != "" {
 			path = rebuildPathWithJES(basePath, jesName)
 		}
-		payload := map[string]string{"class": newClass, "version": "2.0"}
-		resp, err := client.Put(path, payload, nil)
+
+		version := "2.0"
+		if async {
+			version = "1.0"
+		}
+		payload := map[string]string{"class": newClass, "version": version}
+
+		headers := make(map[string]string)
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+		}
+		if targetPassword != "" {
+			headers["X-IBM-Target-System-Password"] = targetPassword
+		}
+
+		resp, err := client.Put(path, payload, headers)
 		if err != nil {
 			return err
 		}
@@ -712,6 +955,11 @@ Change the JES job class of an existing job.`,
 
 func runJobModify(cmd *cobra.Command, action string) error {
 	jesName, _ := cmd.Flags().GetString("secondary-jes")
+	async, _ := cmd.Flags().GetBool("async")
+	targetSystem, _ := cmd.Flags().GetString("target-system")
+	targetUser, _ := cmd.Flags().GetString("target-user")
+	targetPassword, _ := cmd.Flags().GetString("target-password")
+
 	client := Profile.NewZosmfClient()
 	basePath, err := resolveJobIdentPath(cmd)
 	if err != nil {
@@ -721,8 +969,25 @@ func runJobModify(cmd *cobra.Command, action string) error {
 	if jesName != "" {
 		path = rebuildPathWithJES(basePath, jesName)
 	}
-	payload := map[string]string{"request": action, "version": "2.0"}
-	resp, err := client.Put(path, payload, nil)
+
+	version := "2.0"
+	if async {
+		version = "1.0"
+	}
+	payload := map[string]string{"request": action, "version": version}
+
+	headers := make(map[string]string)
+	if targetSystem != "" {
+		headers["X-IBM-Target-System"] = targetSystem
+	}
+	if targetUser != "" {
+		headers["X-IBM-Target-System-User"] = targetUser
+	}
+	if targetPassword != "" {
+		headers["X-IBM-Target-System-Password"] = targetPassword
+	}
+
+	resp, err := client.Put(path, payload, headers)
 	if err != nil {
 		return err
 	}
@@ -780,58 +1045,104 @@ var _ = json.Marshal
 // ---------- init ----------
 
 func init() {
-	// ls flags
-	jobsListCmd.Flags().StringP("owner", "o", "*", "Owner of the requested z/OS JES jobs")
-	jobsListCmd.Flags().StringP("prefix", "p", "*", "Job name prefix to search for")
-	jobsListCmd.Flags().StringP("status", "s", "*", "Status filter (e.g. ACTIVE)")
-	jobsListCmd.Flags().IntP("max-jobs", "m", 1000, "Maximum number of jobs returned")
-	jobsListCmd.Flags().BoolP("ojob", "b", false, "Display z/OS batch jobs only")
-	jobsListCmd.Flags().BoolP("ostc", "c", false, "Display z/OS started tasks only")
-	jobsListCmd.Flags().BoolP("otsu", "u", false, "Display z/OS TSO users only")
+	// list flags
+	jobsListCmd.Flags().StringP("owner", "o", "*", "Job owner (default: z/OS user ID, max 8 chars, wildcards allowed).")
+	jobsListCmd.Flags().StringP("prefix", "p", "*", "Job name prefix (max 8 chars, wildcards allowed).")
+	jobsListCmd.Flags().StringP("status", "s", "", "Status filter: ACTIVE to limit to active jobs.")
+	jobsListCmd.Flags().IntP("max-jobs", "m", 1000, "Maximum jobs returned (1-1000).")
+	jobsListCmd.Flags().String("jobid", "", "Job ID filter (max 8 chars, mutually exclusive with --user-correlator).")
+	jobsListCmd.Flags().String("user-correlator", "", "User portion of job correlator (1-32 chars, JES2 only).")
+	jobsListCmd.Flags().String("exec-data", "", "Return execution data: Y or N.")
+	jobsListCmd.Flags().BoolP("ojob", "b", false, "Display z/OS batch jobs only.")
+	jobsListCmd.Flags().BoolP("ostc", "c", false, "Display z/OS started tasks only.")
+	jobsListCmd.Flags().BoolP("otsu", "u", false, "Display z/OS TSO users only.")
 	jobsListCmd.MarkFlagsMutuallyExclusive("ojob", "ostc", "otsu")
-	jobsListCmd.Flags().BoolP("tui", "t", false, "Activate terminal user interface")
+	jobsListCmd.MarkFlagsMutuallyExclusive("jobid", "user-correlator")
+	jobsListCmd.Flags().BoolP("tui", "t", false, "Activate terminal user interface.")
+	addJESFlag(jobsListCmd)
+	jobsListCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsListCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsListCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
-	// ddnames flags
+	// ddnames flags (list spool files)
 	addJobIdentFlags(jobsDDNamesCmd)
+	addJESFlag(jobsDDNamesCmd)
+	jobsDDNamesCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsDDNamesCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsDDNamesCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
-	// files flags
+	// spool flags (retrieve spool content)
 	addJobIdentFlags(jobsFilesCmd)
-	jobsFilesCmd.Flags().IntP("file-id", "i", 0, "Spool file ID to retrieve")
-	jobsFilesCmd.MarkFlagRequired("file-id")
-
-	// jcl flags
-	addJobIdentFlags(jobsJCLCmd)
+	addJESFlag(jobsFilesCmd)
+	jobsFilesCmd.Flags().IntP("file-id", "i", 0, "Spool file ID to retrieve.")
+	jobsFilesCmd.Flags().Bool("jcl", false, "Retrieve submitted JCL instead of spool file.")
+	jobsFilesCmd.Flags().String("mode", "", "Conversion mode: text (default), binary, or record.")
+	jobsFilesCmd.Flags().String("file-encoding", "", "EBCDIC code page for spool file (default: IBM-1047, text mode only).")
+	jobsFilesCmd.Flags().String("search", "", "Search for first record containing this string (text mode only).")
+	jobsFilesCmd.Flags().String("research", "", "Search using extended regular expression (text mode only).")
+	jobsFilesCmd.Flags().String("insensitive", "", "Case insensitive search: true (default) or false.")
+	jobsFilesCmd.Flags().String("max-return-size", "", "Max records to return for search/research (default 100).")
+	jobsFilesCmd.Flags().String("record-range", "", "Record range: SSS-EEE or SSS,NNN (0-based).")
+	jobsFilesCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsFilesCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsFilesCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// submit flags
-	jobsSubmitCmd.Flags().StringP("file-name", "f", "", "File containing JCL to submit")
-	jobsSubmitCmd.MarkFlagRequired("file-name")
+	jobsSubmitCmd.Flags().StringP("file-name", "f", "", "Local file containing JCL to submit inline.")
+	jobsSubmitCmd.Flags().StringP("remote-file", "r", "", "Host dataset or UNIX file path (e.g. \"//'HLQ.JCL(MBR)'\" or \"/u/jobs/job1\").")
 	addJESFlag(jobsSubmitCmd)
-	jobsSubmitCmd.Flags().Bool("inline", true, "Submit JCL inline (text/plain)")
+	jobsSubmitCmd.Flags().String("intrdr-class", "", "Internal reader class (single char, default A). Defines default MSGCLASS.")
+	jobsSubmitCmd.Flags().String("intrdr-recfm", "", "Internal reader record format: F or V.")
+	jobsSubmitCmd.Flags().String("intrdr-lrecl", "", "Internal reader logical record length (default 80).")
+	jobsSubmitCmd.Flags().String("intrdr-mode", "", "Input job format: TEXT, RECORD, or BINARY (default TEXT).")
+	jobsSubmitCmd.Flags().String("intrdr-file-encoding", "", "EBCDIC code page for internal reader (default IBM-1047).")
+	jobsSubmitCmd.Flags().String("user-correlator", "", "User portion of the job correlator (1-32 chars).")
+	jobsSubmitCmd.Flags().StringArrayP("jcl-symbol", "s", nil, "JCL symbol as NAME=VALUE (repeatable, up to 128).")
+	jobsSubmitCmd.Flags().String("notification-url", "", "URL to receive HTTP POST on job events.")
+	jobsSubmitCmd.Flags().String("notification-options", "", "JSON string specifying job events, e.g. '{\"events\":[\"active\",\"complete\"]}'.")
+	jobsSubmitCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsSubmitCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsSubmitCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// hold flags
 	addJobIdentFlags(jobsHoldCmd)
 	addJESFlag(jobsHoldCmd)
+	jobsHoldCmd.Flags().Bool("async", false, "Use asynchronous processing (version 1.0).")
+	jobsHoldCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsHoldCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsHoldCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// release flags
 	addJobIdentFlags(jobsReleaseCmd)
 	addJESFlag(jobsReleaseCmd)
+	jobsReleaseCmd.Flags().Bool("async", false, "Use asynchronous processing (version 1.0).")
+	jobsReleaseCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsReleaseCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsReleaseCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// cancel flags
 	addJobIdentFlags(jobsCancelCmd)
 	addJESFlag(jobsCancelCmd)
 	jobsCancelCmd.Flags().Bool("purge", false, "Purge output of cancelled job")
+	jobsCancelCmd.Flags().Bool("async", false, "Use asynchronous processing (version 1.0).")
+	jobsCancelCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsCancelCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsCancelCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// change-class flags
 	addJobIdentFlags(jobsChangeClassCmd)
 	addJESFlag(jobsChangeClassCmd)
 	jobsChangeClassCmd.Flags().StringP("new-class", "n", "", "New JES job class")
 	jobsChangeClassCmd.MarkFlagRequired("new-class")
+	jobsChangeClassCmd.Flags().Bool("async", false, "Use asynchronous processing (version 1.0).")
+	jobsChangeClassCmd.Flags().String("target-system", "", "Target system nickname for cross-system request.")
+	jobsChangeClassCmd.Flags().String("target-user", "", "User ID for target system authentication.")
+	jobsChangeClassCmd.Flags().String("target-password", "", "Password for target system authentication.")
 
 	// Wire up
 	jobsCmd.AddCommand(jobsListCmd)
 	jobsCmd.AddCommand(jobsDDNamesCmd)
 	jobsCmd.AddCommand(jobsFilesCmd)
-	jobsCmd.AddCommand(jobsJCLCmd)
 	jobsCmd.AddCommand(jobsSubmitCmd)
 	jobsCmd.AddCommand(jobsHoldCmd)
 	jobsCmd.AddCommand(jobsReleaseCmd)
