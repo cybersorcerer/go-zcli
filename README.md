@@ -55,16 +55,16 @@ Produces binaries in `bin/` for:
 Cross-compilation for z/OS is not supported. Build natively on z/OS:
 
 ```bash
-go build -ldflags '-X main.version=v0.4.0 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .
+go build -ldflags '-X main.version=v0.5.0 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .
 ```
 
 ### GitHub Releases
 
-When a version tag (e.g. `v0.4.0`) is pushed, GitHub Actions automatically builds all platform binaries and creates a release with the artifacts attached.
+When a version tag (e.g. `v0.5.0`) is pushed, GitHub Actions automatically builds all platform binaries and creates a release with the artifacts attached.
 
 ```bash
-git tag v0.4.0
-git push origin v0.4.0
+git tag v0.5.0
+git push origin v0.5.0
 ```
 
 ## Configuration
@@ -126,8 +126,21 @@ zcli jobs ls --tui --prefix 'TEST*' --status active
 # List jobs as JSON
 zcli jobs ls --owner MYUSER --prefix 'BATCH*'
 
-# Submit a job
+# Submit a job from local file
 zcli jobs submit --file-name /path/to/job.jcl
+
+# Submit a job from host dataset or UNIX file
+zcli jobs submit --remote-file 'MYUSER.JCL(TESTJOB)'
+zcli jobs submit --remote-file '/u/myuser/myjob.jcl'
+
+# Submit with internal reader options
+zcli jobs submit --file-name /path/to/job.jcl --intrdr-class A --intrdr-recfm F --intrdr-lrecl 80
+
+# Submit with JCL symbols
+zcli jobs submit --file-name /path/to/job.jcl --jcl-symbol DSN=MYUSER.DATA --jcl-symbol VOL=MYVOL
+
+# Submit with notification
+zcli jobs submit --file-name /path/to/job.jcl --notification-url https://my.server/notify --notification-options 0,1,2
 
 # List datasets
 zcli datasets list --dsn-level 'MYUSER.**'
@@ -224,6 +237,23 @@ zcli files list --path-name /u/myuser
 # Retrieve a z/OS UNIX file
 zcli files retrieve --zunix-file-name /u/myuser/hello.c
 
+# Hold a job (sync by default, use --async for v1.0 async processing)
+zcli jobs hold --jobname TESTJOB --jobid JOB01234
+zcli jobs hold --jobname TESTJOB --jobid JOB01234 --async
+
+# Hold/release/cancel on a remote system
+zcli jobs hold --jobname TESTJOB --jobid JOB01234 --target-system SYSB --target-user USER1 --target-password secret
+
+# Change job class (sync by default)
+zcli jobs change-class --jobname TESTJOB --jobid JOB01234 --class B
+zcli jobs change-class --jobname TESTJOB --jobid JOB01234 --class B --async
+
+# List z/OS UNIX filesystems (TUI)
+zcli filesystems list --tui
+
+# Create a zFS filesystem
+zcli filesystems create --fs-name MYUSER.GO.ZFS --cyls-pri 100 --cyls-sec 20 --owner MYUSER --perms 755
+
 # List mounted filesystems (TUI)
 zcli mfs --tui
 
@@ -309,14 +339,14 @@ zcli --profile-name my_other_zosmf info
 
 ### TUI keyboard shortcuts
 
-The interactive TUI (Terminal User Interface) is available for `jobs ls`, `mfs`, `subsystems list`, and `sysvar get` (use `--tui` flag).
+The interactive TUI (Terminal User Interface) is available for `jobs ls`, `mfs`, `filesystems list`, `subsystems list`, and `sysvar get` (use `--tui` flag).
 
 **Jobs TUI:**
 
 | Key                 | Action                           |
 | ------------------- | -------------------------------- |
 | `Ctrl+S` / `Enter`  | Select job files / spool content |
-| `Ctrl+P` / `Esc`    | Go back to previous view         |
+| `F3`                | Go back to previous view         |
 | `Ctrl+R`            | Refresh job list                 |
 | `Ctrl+L`            | Cancel selected job              |
 | `Ctrl+H`            | Hold selected job                |
@@ -325,33 +355,47 @@ The interactive TUI (Terminal User Interface) is available for `jobs ls`, `mfs`,
 | `F7` / `F8`         | Page up / down                   |
 | `G` / `g`           | Jump to bottom / top             |
 
+**Filesystems TUI:**
+
+| Key        | Action                                          |
+| ---------- | ----------------------------------------------- |
+| `Enter`    | View filesystem details                         |
+| `F3`       | Go back to list                                 |
+| `Ctrl+N`   | Create new zFS filesystem (11-field form)       |
+| `Ctrl+U`   | Unmount selected filesystem (with confirmation) |
+| `Ctrl+X`   | Delete selected filesystem (with confirmation)  |
+| `Ctrl+R`   | Refresh                                         |
+| `Ctrl+C`   | Quit                                            |
+| `F7` / `F8` | Page up / down                                 |
+
 **MFS TUI:**
 
 | Key                 | Action                   |
 | ------------------- | ------------------------ |
 | `Ctrl+S` / `Enter`  | View filesystem details  |
-| `Ctrl+P` / `Esc`    | Go back to list          |
+| `F3`                | Go back to list          |
 | `Ctrl+R`            | Refresh                  |
 | `Ctrl+C`            | Quit                     |
 
 **Subsystems TUI:**
 
-| Key        | Action   |
-| ---------- | -------- |
-| `Ctrl+R`   | Refresh  |
-| `Ctrl+C`   | Quit     |
+| Key         | Action         |
+| ----------- | -------------- |
+| `Ctrl+R`    | Refresh        |
+| `Ctrl+C`    | Quit           |
 | `F7` / `F8` | Page up / down |
 
 **Sysvar TUI:**
 
-| Key        | Action                                      |
-| ---------- | ------------------------------------------- |
-| `Ctrl+N`   | Create / update a variable                  |
-| `Ctrl+X`   | Delete selected variable (with confirmation)|
-| `Ctrl+R`   | Refresh                                     |
-| `Ctrl+C`   | Quit                                        |
-| `Tab` / `Esc` | Navigate form / cancel                   |
-| `F7` / `F8` | Page up / down                             |
+| Key         | Action                                       |
+| ----------- | -------------------------------------------- |
+| `Ctrl+N`    | Create / update a variable                   |
+| `Ctrl+X`    | Delete selected variable (with confirmation) |
+| `Ctrl+R`    | Refresh                                      |
+| `Ctrl+C`    | Quit                                         |
+| `Tab`       | Navigate form fields                         |
+| `F3`        | Cancel form / go back                        |
+| `F7` / `F8` | Page up / down                               |
 
 ## Console command flags
 

@@ -111,7 +111,7 @@ func (m sysvarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "esc":
+			case "f3":
 				m.view = sysvarViewList
 				m.varTable = m.varTable.Focused(true)
 			case "tab", "down":
@@ -142,7 +142,7 @@ func (m sysvarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "esc", "n", "N":
+			case "f3", "n", "N":
 				m.view = sysvarViewList
 				m.varTable = m.varTable.Focused(true)
 				m.statusMsg = "  Delete cancelled"
@@ -197,7 +197,7 @@ func (m sysvarModel) View() string {
 		for i, input := range m.createInputs {
 			form.WriteString(labels[i] + input.View() + "\n")
 		}
-		form.WriteString("\n[enter] save  [tab] next field  [esc] cancel")
+		form.WriteString("\n[enter] save  [tab] next field  [F3] cancel")
 		b.WriteString(style.Render(form.String()))
 
 	case sysvarViewConfirmDelete:
@@ -226,7 +226,7 @@ func (m sysvarModel) View() string {
 
 func (m *sysvarModel) updateSysvarFooter() {
 	m.varTable = m.varTable.WithStaticFooter(fmt.Sprintf(
-		"Pg. %d/%d | ctrl+c quit | ctrl+r refresh | ctrl+n create | ctrl+x delete | ↑/↓ move | f7/f8 page",
+		"Pg. %d/%d | ctrl+n create | ctrl+x delete | ctrl+r refresh | ↑/↓ move | F7/F8 page | ctrl+c quit",
 		m.varTable.CurrentPage(), m.varTable.MaxPages(),
 	))
 }
