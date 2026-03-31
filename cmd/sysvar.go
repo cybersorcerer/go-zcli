@@ -111,7 +111,7 @@ func (m sysvarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3":
+			case "f3", "esc":
 				m.view = sysvarViewList
 				m.varTable = m.varTable.Focused(true)
 			case "tab", "down":
@@ -142,7 +142,7 @@ func (m sysvarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3", "n", "N":
+			case "f3", "esc", "n", "N":
 				m.view = sysvarViewList
 				m.varTable = m.varTable.Focused(true)
 				m.statusMsg = "  Delete cancelled"
@@ -371,6 +371,7 @@ var sysvarGetCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Use this command to retrieve z/OSMF and system variables.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		useTUI, _ := cmd.Flags().GetBool("tui")
 		plexName, _ := cmd.Flags().GetString("plex-name")
@@ -430,6 +431,7 @@ Use this command to create or update system variables in the
 variable pool. If the pool does not exist, it will be created.
 Variables are specified with --var name=value (repeatable).
 Optional descriptions can be added with --desc (same order as --var).`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		plexName, _ := cmd.Flags().GetString("plex-name")
 		systemName, _ := cmd.Flags().GetString("system-name")
@@ -485,6 +487,7 @@ Use this command to import z/OSMF system variables from a
 CSV file on the z/OS system. The file must contain variable
 definitions in CSV format (name, value, description per row)
 with no header row.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		plexName, _ := cmd.Flags().GetString("plex-name")
 		systemName, _ := cmd.Flags().GetString("system-name")
@@ -555,6 +558,7 @@ DESCRIPTION
 Use this command to export z/OSMF system variables to a CSV
 file on the z/OS system. The exported file can be re-imported
 with the import command.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		plexName, _ := cmd.Flags().GetString("plex-name")
 		systemName, _ := cmd.Flags().GetString("system-name")
@@ -612,6 +616,7 @@ DESCRIPTION
 Use this command to delete z/OSMF system variables from the
 variable pool. Specify variable names with --var (repeatable).
 Without --var, the entire variable pool is deleted.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		plexName, _ := cmd.Flags().GetString("plex-name")
 		systemName, _ := cmd.Flags().GetString("system-name")

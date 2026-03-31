@@ -26,6 +26,7 @@ DESCRIPTION
 -----------
 You can use this command to obtain a list
 of z/Unix files and directories.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pathName, _ := cmd.Flags().GetString("path-name")
 		maxItems, _ := cmd.Flags().GetString("max-items")
@@ -116,6 +117,7 @@ DESCRIPTION
 -----------
 You can use this command to retrieve a file from z/Unix. To write the
 retrieved data to the local file system also specify --local-file-name.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFileName, _ := cmd.Flags().GetString("zunix-file-name")
 		localFileName, _ := cmd.Flags().GetString("local-file-name")
@@ -212,6 +214,7 @@ DESCRIPTION
 You can use this command to write to a file in z/Unix. The command will read
 data from --local-file-name and write it to --zunix-file-name. You can specify
 an etag (--etag) formerly returned by the retrieve command.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFileName, _ := cmd.Flags().GetString("zunix-file-name")
 		localFileName, _ := cmd.Flags().GetString("local-file-name")
@@ -279,6 +282,7 @@ DESCRIPTION
 -----------
 The command will create a file or directory at the specified path.
 You can specify the file type using --file-type (file or dir).`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		fileType, _ := cmd.Flags().GetString("file-type")
@@ -312,6 +316,7 @@ DESCRIPTION
 -----------
 The command will delete a file or directory at the specified path.
 You decide if a non empty directory should be deleted by specifying --recursive.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		recursive, _ := cmd.Flags().GetBool("recursive")
@@ -369,6 +374,7 @@ DESCRIPTION
 -----------
 chmod is the command used to change the access permissions and
 the special mode flags of file system objects (files and directories).`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		permissions, _ := cmd.Flags().GetString("permissions")
@@ -423,6 +429,7 @@ var filesChownCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Used to change the owner of file system files and directories.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		owner, _ := cmd.Flags().GetString("owner")
@@ -482,6 +489,7 @@ DESCRIPTION
 -----------
 chtag allows you to set, modify, remove, or display information in a file tag.
 A file tag is composed of a text flag (txtflag) and a coded character set.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		action, _ := cmd.Flags().GetString("action")
@@ -546,6 +554,7 @@ The following attributes are supported:
 - l: shared library region
 - p: program-controlled
 - s: shared address space`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		action, _ := cmd.Flags().GetString("action")
@@ -595,6 +604,7 @@ DESCRIPTION
 -----------
 Copy a UNIX file or directory, or a dataset/member, to a target UNIX file path.
 Use --from for a UNIX source or --from-dataset for a dataset source.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		from, _ := cmd.Flags().GetString("from")
@@ -674,6 +684,7 @@ var filesMoveCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Move a UNIX file or directory to the target path.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		from, _ := cmd.Flags().GetString("from")
@@ -722,6 +733,7 @@ var filesGetfaclCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Retrieve access control list (ACL) entries for a UNIX file or directory.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		aclType, _ := cmd.Flags().GetString("type")
@@ -787,6 +799,7 @@ DESCRIPTION
 -----------
 Set, modify, or delete access control list (ACL) entries for a UNIX file or directory.
 Use one of: --set, --modify, --delete, or --delete-type.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		abort, _ := cmd.Flags().GetBool("abort")
@@ -855,6 +868,7 @@ var filesLinkCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Create a symbolic link or external link to a UNIX file or directory.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		from, _ := cmd.Flags().GetString("from")
@@ -907,6 +921,7 @@ var filesUnlinkCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Unlink (remove a link to) a UNIX file.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zunixFilePath, _ := cmd.Flags().GetString("zunix-file-path")
 		targetSystem, _ := cmd.Flags().GetString("target-system")

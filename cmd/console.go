@@ -32,6 +32,7 @@ You can use this command to issue a z/OS command and
 get a corresponding response. The command can be issued
 synchronously or asynchronously. You can detect keywords
 in solicited and unsolicited messages.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		command, _ := cmd.Flags().GetString("command")
 		text, _ := cmd.Flags().GetBool("text")
@@ -151,6 +152,7 @@ DESCRIPTION
 -----------
 Retrieve the command response for a previously issued command
 using the cmd-response-key returned by the command request.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		consoleName, _ := cmd.Flags().GetString("console-name")
 		responseKey, _ := cmd.Flags().GetString("response-key")
@@ -192,6 +194,7 @@ DESCRIPTION
 -----------
 Retrieve the result of an unsolicited keyword detection
 using the detection-key returned by the command request.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		consoleName, _ := cmd.Flags().GetString("console-name")
 		detectionKey, _ := cmd.Flags().GetString("detection-key")
@@ -221,6 +224,7 @@ DESCRIPTION
 Retrieve messages from the hardcopy log (OPERLOG or SYSLOG).
 You can specify a time, time range, and direction to filter
 the messages returned. Maximum 10000 log entries per request.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		time, _ := cmd.Flags().GetString("time")
 		timestamp, _ := cmd.Flags().GetString("timestamp")

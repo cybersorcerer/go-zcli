@@ -17,6 +17,7 @@ DESCRIPTION
 Use this command to retrieve information about z/OSMF.
 This service allows the caller to query the version and other details
 about the instance of z/OSMF running on a particular system.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 		resp, err := client.Get("/info", nil)

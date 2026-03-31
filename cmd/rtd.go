@@ -17,6 +17,7 @@ DESCRIPTION
 Use this command to retrieve Runtime Diagnostic Data from z/OS.
 Asname is the name of the address space name or name prefix.
 DEFAULT: All address spaces are analyzed by Runtime Diagnostics.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		asName, _ := cmd.Flags().GetString("address-space-name")
 

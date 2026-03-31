@@ -126,7 +126,7 @@ func (m jobModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmds = append(cmds, fetchSpoolContent(m.url))
 			}
 
-		case "f3":
+		case "f3", "esc":
 			if m.view == "files" {
 				m.view = "jobs"
 				m.fileTable = m.fileTable.Focused(false)
@@ -444,6 +444,7 @@ are available using key combinations.`,
 	Example: `
   zcli jobs list --tui --prefix 'TEST*'
   zcli jobs list --prefix 'TEST*' --status active --ojob`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		owner, _ := cmd.Flags().GetString("owner")
 		prefix, _ := cmd.Flags().GetString("prefix")
@@ -535,6 +536,7 @@ List the spool files (DD names) for a job and return them as JSON.`,
   zcli jobs ddnames --job-name TESTJOB --job-id JOB00030
   zcli jobs ddnames --job-correlator J0003456
   zcli jobs ddnames --job-name TESTJOB --job-id JOB00030 --secondary-jes JES3`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		secondaryJES, _ := cmd.Flags().GetString("secondary-jes")
 		targetSystem, _ := cmd.Flags().GetString("target-system")
@@ -589,6 +591,7 @@ record range filtering.`,
   zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --record-range 0-99
   zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --search 'IEF403I'
   zcli jobs spool --job-name TESTJOB --job-id JOB00030 --file-id 3 --mode binary`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileID, _ := cmd.Flags().GetInt("file-id")
 		jcl, _ := cmd.Flags().GetBool("jcl")
@@ -695,6 +698,7 @@ JCL symbols can be passed with --jcl-symbol NAME=VALUE (repeatable).`,
   zcli jobs submit --remote-file /u/myjobs/job1 --intrdr-mode TEXT
   zcli jobs submit --file-name job.jcl --jcl-symbol MBR=ABC --jcl-symbol ENV=PROD
   zcli jobs submit --file-name job.jcl --notification-url https://hook.example.com`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileName, _ := cmd.Flags().GetString("file-name")
 		remoteFile, _ := cmd.Flags().GetString("remote-file")
@@ -824,6 +828,7 @@ When held, a job is not eligible for selection. Identify the job by
 
 By default synchronous processing (version 2.0) is used. Use --async
 for asynchronous processing (version 1.0), which returns HTTP 202 only.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runJobModify(cmd, "hold")
 	},
@@ -836,6 +841,7 @@ var jobsReleaseCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Release a held job on z/OS using the z/OSMF REST API.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runJobModify(cmd, "release")
 	},
@@ -848,6 +854,7 @@ var jobsCancelCmd = &cobra.Command{
 DESCRIPTION
 -----------
 Cancel a job currently executing on z/OS. With --purge the job output is also deleted.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		purge, _ := cmd.Flags().GetBool("purge")
 		jesName, _ := cmd.Flags().GetString("secondary-jes")
@@ -903,6 +910,7 @@ not validated on input; verify with "zcli jobs list" afterwards.
 
 By default synchronous processing (version 2.0) is used. Use --async
 for asynchronous processing (version 1.0), which returns HTTP 202 only.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		newClass, _ := cmd.Flags().GetString("new-class")
 		jesName, _ := cmd.Flags().GetString("secondary-jes")

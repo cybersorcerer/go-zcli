@@ -81,6 +81,7 @@ DESCRIPTION
 -----------
 SMP/E CSI Query action is to be performed on the identified
 global zone CSI data set.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		globalCSI, _ := cmd.Flags().GetString("global-csi")
 		zones, _ := cmd.Flags().GetString("zones")
@@ -136,6 +137,7 @@ DESCRIPTION
 The Missing Critical Updates command helps you determine if your software
 instances are missing software updates to resolve PE PTFs, HIPER fixes, or
 other exception SYSMODs identified by ERROR HOLDDATA.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")
@@ -180,6 +182,7 @@ DESCRIPTION
 -----------
 The Software Update Search command allows you to search a software instance
 for one or more software updates.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")
@@ -228,6 +231,7 @@ DESCRIPTION
 -----------
 The Missing FIXCAT Updates command helps you identify missing updates for fix categories
 that might be applicable to the software instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")
@@ -285,6 +289,7 @@ DESCRIPTION
 -----------
 You can use this command to retrieve the UUID for the software instance
 that represents the installed software for the specified z/OSMF host system.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 
@@ -312,6 +317,7 @@ DESCRIPTION
 -----------
 You can use the list command to get a list of all software or
 portable software instances defined to z/OSMF.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		pswi, _ := cmd.Flags().GetBool("pswi")
 
@@ -342,6 +348,7 @@ DESCRIPTION
 -----------
 You can use the add command to add a new software instance to z/OSMF.
 The request content must be in a json formatted text file.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileName, _ := cmd.Flags().GetString("file-name")
 
@@ -384,6 +391,7 @@ DESCRIPTION
 -----------
 You can use this command to perform an Export action on a software instance
 that is defined to z/OSMF, which generates a portable software instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileName, _ := cmd.Flags().GetString("file-name")
 		nickName, _ := cmd.Flags().GetString("nick-name")
@@ -435,6 +443,7 @@ DESCRIPTION
 You can use this command to remove a software instance definition from z/OSMF.
 The delete operation removes only the definition of the software instance from z/OSMF.
 The physical data sets that compose the software instance are not affected.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")
@@ -466,6 +475,7 @@ var softwareInstancesSipropsCmd = &cobra.Command{
 DESCRIPTION
 -----------
 You can use the siprops command to get the properties of a software instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")
@@ -497,6 +507,7 @@ var softwareInstancesSilistdsCmd = &cobra.Command{
 DESCRIPTION
 -----------
 You can use the silistds command to get the datasets of a software instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nickName, _ := cmd.Flags().GetString("nick-name")
 		swiName, _ := cmd.Flags().GetString("swi-name")

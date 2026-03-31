@@ -19,6 +19,14 @@
 ### Changes
 
 - **All TUIs**: Changed `esc` key to `F3` for back/cancel actions; `esc` no longer works — updated all footer descriptions accordingly (`F3 back`, `[F3] cancel`)
+- **All TUIs**: Added alternative keys for environments where F-keys are intercepted (e.g. Omnissa Horizon Client): `esc` as alternative for `F3`, `Ctrl+U` for `F7` (page up), `Ctrl+D` for `F8` (page down)
+- **All commands**: Added `Args: cobra.NoArgs` to all 60+ leaf commands — unknown positional arguments now produce an error with exit code 1 instead of being silently ignored
+- **Filesystems mount/unmount**: Added AUTHORIZATION section in command description — requires `BPX.SUPERUSER` (FACILITY) or `SUPERUSER.FILESYS.MOUNT` (UNIXPRIV) RACF access
+- **Build on z/OS**: Updated `make build-zos` instructions and README to document required extended module updates (`golang.org/x/sys`, `golang.org/x/sync`, `golang.org/x/text`) before building natively on z/OS with the Open Enterprise SDK for Go
+
+### Bug Fixes
+
+- Fixed `datasets create` sending empty/zero optional fields (`like`, `volser`, `unit`, `storclass`, `mgntclass`, `dataclass`, `dsntype`, `avgblk`, `blksize`) in JSON body — z/OSMF rejected empty `like` field with rc=4, reason=13
 
 ## v0.4.0 - 2026-03-28
 

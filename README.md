@@ -52,7 +52,21 @@ Produces binaries in `bin/` for:
 
 ### Build on z/OS
 
-Cross-compilation for z/OS is not supported. Build natively on z/OS:
+Cross-compilation for z/OS is not supported. Build natively on z/OS using the [Open Enterprise SDK for Go](https://www.ibm.com/products/open-enterprise-sdk-go-zos).
+
+This project uses the following extended modules that require special handling on z/OS:
+`golang.org/x/sys`, `golang.org/x/sync`, `golang.org/x/text`
+
+Before building, update the extended modules to their latest z/OS-compatible versions:
+
+```bash
+go get golang.org/x/sys@latest
+go get golang.org/x/sync@latest
+go get golang.org/x/text@latest
+go mod tidy
+```
+
+Then build:
 
 ```bash
 go build -ldflags '-X main.version=v0.5.0 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .

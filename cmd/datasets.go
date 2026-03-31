@@ -27,6 +27,7 @@ DESCRIPTION
 You can use this command to obtain a list of z/OS datasets.
 You can search the z/OS catalog or a z/OS volume serial for
 matching datasets.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsnLevel, _ := cmd.Flags().GetString("dsn-level")
 		volser, _ := cmd.Flags().GetString("volser")
@@ -73,6 +74,7 @@ DESCRIPTION
 -----------
 You can use this command to obtain a list of members of z/OS
 partitioned datasets (PDS and PDS/E).`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		pattern, _ := cmd.Flags().GetString("pattern")
@@ -126,6 +128,7 @@ You can use this command to read a member of a dataset or a
 sequential dataset. If the dataset is not cataloged specify a
 volume serial number to read the member or the dataset directly
 from the volume.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		memberName, _ := cmd.Flags().GetString("member-name")
@@ -230,6 +233,7 @@ DESCRIPTION
 -----------
 You can use this command to create a sequential or partitioned
 dataset on a z/OS system.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		volser, _ := cmd.Flags().GetString("volser")
@@ -261,22 +265,42 @@ dataset on a z/OS system.`,
 		client := Profile.NewZosmfClient()
 		path := fmt.Sprintf("/restfiles/ds/%s", dsName)
 		payload := map[string]interface{}{
-			"volser":    volser,
-			"unit":      unit,
 			"dsorg":     dsorg,
 			"alcunit":   alcunit,
 			"primary":   primary,
 			"secondary": secondary,
-			"dirblk":    dirblk,
-			"avgblk":    avgblk,
 			"recfm":     recfm,
-			"blksize":   blksize,
 			"lrecl":     lrecl,
-			"storclass": storclass,
-			"mgntclass": mgntclass,
-			"dataclass": dataclass,
-			"dsntype":   dsnType,
-			"like":      like,
+		}
+		if volser != "" {
+			payload["volser"] = volser
+		}
+		if unit != "" {
+			payload["unit"] = unit
+		}
+		if dirblk != 0 {
+			payload["dirblk"] = dirblk
+		}
+		if avgblk != 0 {
+			payload["avgblk"] = avgblk
+		}
+		if blksize != 0 {
+			payload["blksize"] = blksize
+		}
+		if storclass != "" {
+			payload["storclass"] = storclass
+		}
+		if mgntclass != "" {
+			payload["mgntclass"] = mgntclass
+		}
+		if dataclass != "" {
+			payload["dataclass"] = dataclass
+		}
+		if dsnType != "" {
+			payload["dsntype"] = dsnType
+		}
+		if like != "" {
+			payload["like"] = like
 		}
 
 		// Build X-IBM-Data-Type header
@@ -339,6 +363,7 @@ You can use this command to delete a sequential or partitioned
 dataset or delete members on a partitioned dataset. If you would
 like to delete non cataloged datasets or members, you can specify
 a z/OS volume serial.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		memberName, _ := cmd.Flags().GetString("member-name")
@@ -389,6 +414,7 @@ DESCRIPTION
 -----------
 You can use this command to recall a previously migrated sequential
 or partitioned dataset.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		wait, _ := cmd.Flags().GetBool("wait")
@@ -427,6 +453,7 @@ DESCRIPTION
 -----------
 Migrates a data set to a DFSMShsm level 1 or level 2 volume.
 Performed in the foreground by DFSMShsm.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		wait, _ := cmd.Flags().GetBool("wait")
@@ -466,6 +493,7 @@ DESCRIPTION
 Scratches a data set on a DASD migration volume without recalling the data set
 or marks the data set not valid in the TTOC for any tape ML2 volumes that contain
 the data set.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		wait, _ := cmd.Flags().GetBool("wait")
@@ -507,6 +535,7 @@ DESCRIPTION
 You can use this command to rename a dataset or a member of a
 partitioned dataset. The --ds-name is the NEW (target) name.
 Use --from-ds-name for the source dataset.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		fromDsName, _ := cmd.Flags().GetString("from-ds-name")
@@ -563,6 +592,7 @@ DESCRIPTION
 You can use this command to copy a dataset, member, or z/OS UNIX
 file to a target dataset or member. The --ds-name is the target
 dataset. Use --from-ds-name or --from-file to specify the source.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		dsName, _ := cmd.Flags().GetString("ds-name")
 		memberName, _ := cmd.Flags().GetString("member-name")
@@ -657,6 +687,7 @@ Example:
   zcli datasets utilities ams \
     --input "DEFINE CLUSTER(NAME (MY.KSDS) VOLUMES(VSER05)) -" \
     --input "DATA  (KILOBYTES (50 5))"`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		input, _ := cmd.Flags().GetStringArray("input")
 		targetSystem, _ := cmd.Flags().GetString("target-system")

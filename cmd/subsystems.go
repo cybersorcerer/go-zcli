@@ -170,6 +170,7 @@ DESCRIPTION
 You can use the list subcommand to get information about the
 subsystems on a z/OS system. You can filter the returned list
 of subsystems by specifying a subsystem id or wild-card.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		useTUI, _ := cmd.Flags().GetBool("tui")
 		ssid, _ := cmd.Flags().GetString("ssid")

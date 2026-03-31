@@ -166,7 +166,7 @@ func (m fsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3":
+			case "f3", "esc":
 				m.view = fsViewList
 				m.detailTable = m.detailTable.Focused(false)
 				m.fsTable = m.fsTable.Focused(true)
@@ -176,7 +176,7 @@ func (m fsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3":
+			case "f3", "esc":
 				m.view = fsViewList
 				m.fsTable = m.fsTable.Focused(true)
 			case "tab", "down":
@@ -218,7 +218,7 @@ func (m fsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3", "n", "N":
+			case "f3", "esc", "n", "N":
 				m.view = fsViewList
 				m.fsTable = m.fsTable.Focused(true)
 				m.statusMsg = "  Delete cancelled"
@@ -241,7 +241,7 @@ func (m fsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3", "n", "N":
+			case "f3", "esc", "n", "N":
 				m.view = fsViewCreate
 				m.statusMsg = "  Create cancelled"
 			case "left", "right", "h", "l", "tab":
@@ -262,7 +262,7 @@ func (m fsModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "ctrl+c":
 				return m, tea.Quit
-			case "f3", "n", "N":
+			case "f3", "esc", "n", "N":
 				m.view = fsViewList
 				m.fsTable = m.fsTable.Focused(true)
 				m.statusMsg = "  Unmount cancelled"
@@ -678,6 +678,7 @@ var filesystemsCreateCmd = &cobra.Command{
 DESCRIPTION
 -----------
 The command will create a new zfs filesystem.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zfsName, _ := cmd.Flags().GetString("zfs-dataset-name")
 		owner, _ := cmd.Flags().GetString("owner")
@@ -759,6 +760,7 @@ var filesystemsDeleteCmd = &cobra.Command{
 DESCRIPTION
 -----------
 The command will delete a zfs filesystem.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		zfsName, _ := cmd.Flags().GetString("zfs-dataset-name")
 		targetSystem, _ := cmd.Flags().GetString("target-system")
@@ -798,7 +800,14 @@ var filesystemsMountCmd = &cobra.Command{
 	Long: `
 DESCRIPTION
 -----------
-You can use this command to mount a z/OS UNIX file system on a specified directory.`,
+You can use this command to mount a z/OS UNIX file system on a specified directory.
+
+AUTHORIZATION
+-------------
+The caller must have one of the following:
+  - READ access to the BPX.SUPERUSER profile in the FACILITY RACF class, or
+  - READ access to the SUPERUSER.FILESYS.MOUNT profile in the UNIXPRIV RACF class.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fsName, _ := cmd.Flags().GetString("fs-dataset-name")
 		fsType, _ := cmd.Flags().GetString("fs-type")
@@ -855,7 +864,14 @@ var filesystemsUnmountCmd = &cobra.Command{
 	Long: `
 DESCRIPTION
 -----------
-You can use this command to unmount a z/OS UNIX file system.`,
+You can use this command to unmount a z/OS UNIX file system.
+
+AUTHORIZATION
+-------------
+The caller must have one of the following:
+  - READ access to the BPX.SUPERUSER profile in the FACILITY RACF class, or
+  - READ access to the SUPERUSER.FILESYS.MOUNT profile in the UNIXPRIV RACF class.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fsName, _ := cmd.Flags().GetString("fs-dataset-name")
 		targetSystem, _ := cmd.Flags().GetString("target-system")
@@ -901,6 +917,7 @@ DESCRIPTION
 List all mounted filesystems, or the specific filesystem mounted at a given path,
 or the filesystem with a given filesystem name. Use --tui for an interactive view
 with details and unmount support.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fsName, _ := cmd.Flags().GetString("fs-dataset-name")
 		pathName, _ := cmd.Flags().GetString("path")

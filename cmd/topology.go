@@ -28,6 +28,7 @@ DESCRIPTION
 You can use this operation to obtain a list
 of the groups that are defined to a z/OSMF
 instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 
@@ -53,6 +54,7 @@ DESCRIPTION
 You can use this operation to obtain a list
 of the sysplexes that are defined to a z/OSMF
 instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 
@@ -90,6 +92,7 @@ DESCRIPTION
 You can use this operation to obtain a list
 of the systems that are defined to a z/OSMF
 instance.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 
@@ -114,6 +117,7 @@ DESCRIPTION
 -----------
 You can use this operation to obtain a list of the systems that
 are included in a group.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 		client := Profile.NewZosmfClient()
@@ -140,6 +144,7 @@ DESCRIPTION
 -----------
 You can use this operation to obtain a list of the systems that
 are included in a z/OS parallel sysplex.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 		client := Profile.NewZosmfClient()
@@ -177,6 +182,7 @@ DESCRIPTION
 You can use this operation to check the connection status of a
 specified system which is managed through the z/OSMF Systems task.
 If no system is provided, then validate LocalSystemDefinition.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 		client := Profile.NewZosmfClient()
@@ -207,6 +213,7 @@ DESCRIPTION
 -----------
 You can use this operation to obtain a list of the systems
 that are defined to a z/OSMF instance and validate them.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 

@@ -25,6 +25,7 @@ var profileGetCmd = &cobra.Command{
 DESCRIPTION
 -----------
 You can use this command to get a list of a single or all zcli profile definitions.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		name, _ := cmd.Flags().GetString("name")
 

@@ -3,3 +3,4 @@ zcli.gif
 bin/
 CLAUDE.md
 .claude/settings.local.json
+.claude/skills

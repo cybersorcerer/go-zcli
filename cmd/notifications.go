@@ -26,6 +26,7 @@ DESCRIPTION
 -----------
 You can use the list command to get all of the notifications that were
 received by the current user.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client := Profile.NewZosmfClient()
 
@@ -51,6 +52,7 @@ DESCRIPTION
 You can use the send subcommand to send a notification AND mail. The
 notification details are in the file specified as input option to this
 command.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fileName, _ := cmd.Flags().GetString("file-name")
 

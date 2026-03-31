@@ -18,7 +18,17 @@ build:
 
 build-zos:
 	@echo "Cross-compilation for z/OS is not supported."
-	@echo "Build natively on z/OS with: go build -ldflags '$(LDFLAGS)' -o $(BINARY_NAME) ."
+	@echo "Build natively on z/OS using the Open Enterprise SDK for Go."
+	@echo ""
+	@echo "This project uses extended modules that require special handling on z/OS."
+	@echo "Before building, update extended modules:"
+	@echo "  go get golang.org/x/sys@latest"
+	@echo "  go get golang.org/x/sync@latest"
+	@echo "  go get golang.org/x/text@latest"
+	@echo "  go mod tidy"
+	@echo ""
+	@echo "Then build:"
+	@echo "  go build -ldflags '$(LDFLAGS)' -o $(BINARY_NAME) ."
 
 build-local:
 	@mkdir -p $(BINARY_DIR)

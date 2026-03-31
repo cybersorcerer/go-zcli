@@ -27,6 +27,7 @@ DESCRIPTION
 -----------
 You can use this operation to issue a TSO/E command and
 get a corresponding response.`,
+	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		command, _ := cmd.Flags().GetString("command")
 		text, _ := cmd.Flags().GetBool("text")
