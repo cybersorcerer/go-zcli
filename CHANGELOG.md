@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.5.1 - 2026-04-06
+
+### New Features
+
+- **Parmlib**: New `parmlib validate` command for z/OS parmlib member syntax validation using `PUT /zosmf/parmlib/v1/<membertype>/validate`; supports all 38 parmlib member types
+- **Parmlib**: Scenario 1 — validate all active members of a type (active LOADxx)
+- **Parmlib**: Scenario 2 — validate all members of a type via specific LOADxx (`--load-member`, `--load-dataset`, `--load-volser`)
+- **Parmlib**: Scenario 3 — validate a specific member by name (`--member`, `--dataset`, `--volser`)
+- **Parmlib**: Scenario 4 — validate parmlib content piped from stdin
+- **Parmlib**: `--deep` flag for deep validation of all parmlib types via LOADxx (LOAD membertype only)
+- **Parmlib**: `--text` output with per-member result, failure location (line/position), current/expected fields
+- **TSO command**: Rewritten to use new stateless `PUT /zosmf/tsoApp/v1/tso` API with `{"tsoCmd": "..."}` body; removed incorrect start/stop address space logic
+
+### Changes
+
+- **Console log**: `--time` flag now accepts human-friendly formats: `2006-01-02`, `2006-01-02 15:04`, `2006-01-02 15:04:05`, `15:04`, `15:04:05`, and ISO 8601 — converted internally to ISO 8601 UTC
+- **Console log**: New `--ago` flag for relative time input: `30s`, `10m`, `2h`, `1h30m`, `1h30m45s` — converted to UNIX timestamp; takes precedence over `--time`
+- **Console log**: `--text` output now correctly handles multi-line messages containing `\r` — continuation lines are joined with a space and the terminal wraps naturally
+
+### Bug Fixes
+
+- Fixed `tso command` failing with `no servletKey in TSO start response` — the previous implementation incorrectly used the legacy session-based start/issue/stop flow instead of the single-call stateless API
+
 ## v0.5.0 - 2026-04-01
 
 ### New Features

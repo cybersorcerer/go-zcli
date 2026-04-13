@@ -4,11 +4,86 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
+	"time"
 	"zcli/internal/zosmf"
 
 	"github.com/spf13/cobra"
 )
+
+// parseTimeFlag konvertiert menschlich lesbare Zeitangaben zu ISO 8601 UTC.
+// Akzeptierte Formate:
+//   "2006-01-02"              → 2006-01-02T00:00:00.000Z
+//   "2006-01-02 15:04"        → 2006-01-02T15:04:00.000Z
+//   "2006-01-02 15:04:05"     → 2006-01-02T15:04:05.000Z
+//   "2006-01-02T15:04:05"     → 2006-01-02T15:04:05.000Z
+//   "15:04"                   → today + T15:04:00.000Z
+//   "15:04:05"                → today + T15:04:05.000Z
+//   ISO 8601 bereits korrekt  → unverändert zurückgegeben
+func parseTimeFlag(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	now := time.Now().UTC()
+
+	formats := []struct {
+		layout  string
+		hasDate bool
+	}{
+		{"2006-01-02T15:04:05.999Z", true},
+		{"2006-01-02T15:04:05Z", true},
+		{"2006-01-02T15:04:05", true},
+		{"2006-01-02 15:04:05", true},
+		{"2006-01-02 15:04", true},
+		{"2006-01-02", true},
+		{"15:04:05", false},
+		{"15:04", false},
+	}
+
+	for _, f := range formats {
+		var t time.Time
+		var err error
+		if f.hasDate {
+			t, err = time.ParseInLocation(f.layout, s, time.UTC)
+		} else {
+			combined := now.Format("2006-01-02") + " " + s
+			t, err = time.ParseInLocation("2006-01-02 "+f.layout, combined, time.UTC)
+		}
+		if err == nil {
+			return t.UTC().Format("2006-01-02T15:04:05.000Z"), nil
+		}
+	}
+	return "", fmt.Errorf("unbekanntes Zeitformat: %q\nAkzeptierte Formate: 2006-01-02, 2006-01-02 15:04, 15:04, 15:04:05, 2006-01-02T15:04:05", s)
+}
+
+// parseAgoFlag konvertiert relative Zeitangaben (z.B. "2h", "30m", "1h30m", "45s")
+// zu einem UNIX-Timestamp in Millisekunden als String.
+var agoPattern = regexp.MustCompile(`^(\d+h)?(\d+m)?(\d+s)?$`)
+
+func parseAgoFlag(s string) (string, error) {
+	s = strings.TrimSpace(s)
+	if !agoPattern.MatchString(s) || s == "" {
+		return "", fmt.Errorf("unbekanntes --ago Format: %q\nBeispiele: 30s, 10m, 2h, 1h30m", s)
+	}
+	var dur time.Duration
+	re := regexp.MustCompile(`(\d+)([hms])`)
+	for _, match := range re.FindAllStringSubmatch(s, -1) {
+		n, _ := strconv.Atoi(match[1])
+		switch match[2] {
+		case "h":
+			dur += time.Duration(n) * time.Hour
+		case "m":
+			dur += time.Duration(n) * time.Minute
+		case "s":
+			dur += time.Duration(n) * time.Second
+		}
+	}
+	if dur == 0 {
+		return "", fmt.Errorf("--ago darf nicht 0 sein")
+	}
+	ts := time.Now().Add(-dur).UnixMilli()
+	return strconv.FormatInt(ts, 10), nil
+}
 
 var consoleCmd = &cobra.Command{
 	Use:   "console",
@@ -226,8 +301,9 @@ You can specify a time, time range, and direction to filter
 the messages returned. Maximum 10000 log entries per request.`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		time, _ := cmd.Flags().GetString("time")
+		timeStr, _ := cmd.Flags().GetString("time")
 		timestamp, _ := cmd.Flags().GetString("timestamp")
+		ago, _ := cmd.Flags().GetString("ago")
 		timeRange, _ := cmd.Flags().GetString("time-range")
 		direction, _ := cmd.Flags().GetString("direction")
 		hardcopy, _ := cmd.Flags().GetString("hardcopy")
@@ -238,10 +314,20 @@ the messages returned. Maximum 10000 log entries per request.`,
 		path := "/restconsoles/v1/log"
 
 		var params []string
-		if timestamp != "" {
+		if ago != "" {
+			ts, err := parseAgoFlag(ago)
+			if err != nil {
+				return err
+			}
+			params = append(params, "timestamp="+ts)
+		} else if timestamp != "" {
 			params = append(params, "timestamp="+timestamp)
-		} else if time != "" {
-			params = append(params, "time="+time)
+		} else if timeStr != "" {
+			iso, err := parseTimeFlag(timeStr)
+			if err != nil {
+				return err
+			}
+			params = append(params, "time="+iso)
 		}
 		if timeRange != "" {
 			params = append(params, "timeRange="+timeRange)
@@ -284,7 +370,15 @@ the messages returned. Maximum 10000 log entries per request.`,
 			if err := json.Unmarshal(resp.Body, &result); err == nil {
 				fmt.Printf("Source: %s | Total: %d\n\n", result.Source, result.TotalItems)
 				for _, item := range result.Items {
-					msg := strings.TrimSpace(item.Message)
+					parts := strings.Split(item.Message, "\r")
+					var cleaned []string
+					for _, p := range parts {
+						p = strings.TrimSpace(p)
+						if p != "" {
+							cleaned = append(cleaned, p)
+						}
+					}
+					msg := strings.Join(cleaned, " ")
 					fmt.Printf("%s %-8s %s\n", item.Time, strings.TrimSpace(item.JobName), msg)
 				}
 				return nil
@@ -329,8 +423,9 @@ func init() {
 	consoleGetDetectionCmd.MarkFlagRequired("detection-key")
 
 	// log subcommand
-	consoleLogCmd.Flags().String("time", "", "Start time in ISO 8601 format (e.g. 2021-01-26T03:33:18.065Z).")
-	consoleLogCmd.Flags().String("timestamp", "", "Start time as UNIX timestamp in milliseconds (overrides --time).")
+	consoleLogCmd.Flags().String("time", "", "Start time: 2006-01-02, '2006-01-02 15:04', '15:04', '15:04:05' or ISO 8601.")
+	consoleLogCmd.Flags().String("ago", "", "Start time relative to now: 30s, 10m, 2h, 1h30m (overrides --time).")
+	consoleLogCmd.Flags().String("timestamp", "", "Start time as UNIX timestamp in milliseconds (overrides --time and --ago).")
 	consoleLogCmd.Flags().String("time-range", "", "Time range: nnnu where u is s/m/h (e.g. 10m, 1h, 30s). Default: 10m.")
 	consoleLogCmd.Flags().String("direction", "", "Direction from start time: forward or backward (default: backward).")
 	consoleLogCmd.Flags().String("hardcopy", "", "Log source: operlog or syslog (default: operlog, fallback syslog).")
