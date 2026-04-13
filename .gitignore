@@ -1,6 +1,6 @@
 zcli.log
 zcli.gif
 bin/
+.claude
 CLAUDE.md
-.claude/settings.local.json
-.claude/skills
+parmlib.md

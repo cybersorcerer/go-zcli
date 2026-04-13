@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"zcli/internal/config"
 	"zcli/internal/zosmf"
 
 	"github.com/spf13/cobra"
@@ -34,57 +33,15 @@ get a corresponding response.`,
 
 		client := Profile.NewZosmfClient()
 
-		// Get TSO properties from config
-		account := config.GetTSOProperty("account")
-		if account == "" {
-			account = "ACCT#"
-		}
-
-		// Start TSO address space
-		startPayload := map[string]interface{}{
-			"startParameters": map[string]interface{}{
-				"account":        account,
-				"proc":           config.GetTSOProperty("logonProcedure"),
-				"characterSet":   config.GetTSOProperty("characterSet"),
-				"codePage":       config.GetTSOProperty("codePage"),
-				"columns":        80,
-				"regionSize":     8192,
-				"rows":           24,
-			},
-		}
-
-		startResp, err := client.Post("/tsoApp/tso", startPayload, nil)
-		if err != nil {
-			return err
-		}
-		if apiErr := zosmf.CheckResponse(startResp, 200); apiErr != nil {
-			fmt.Fprintln(os.Stderr, apiErr)
-			os.Exit(8)
-		}
-
-		var startResult map[string]interface{}
-		if err := json.Unmarshal(startResp.Body, &startResult); err != nil {
-			return fmt.Errorf("failed to parse TSO start response: %w", err)
-		}
-
-		servletKey, ok := startResult["servletKey"].(string)
-		if !ok {
-			return fmt.Errorf("no servletKey in TSO start response")
-		}
-
-		// Issue TSO command
+		// Issue TSO command via PUT /zosmf/tsoApp/v1/tso
 		cmdPayload := map[string]interface{}{
-			"TSO COMMAND": command,
+			"tsoCmd": command,
 		}
 
-		cmdResp, err := client.Put(fmt.Sprintf("/tsoApp/tso/%s", servletKey), cmdPayload, nil)
+		cmdResp, err := client.Put("/tsoApp/v1/tso", cmdPayload, nil)
 		if err != nil {
 			return err
 		}
-
-		// Stop TSO address space (best effort)
-		defer client.Delete(fmt.Sprintf("/tsoApp/tso/%s", servletKey), nil)
-
 		if apiErr := zosmf.CheckResponse(cmdResp, 200); apiErr != nil {
 			fmt.Fprintln(os.Stderr, apiErr)
 			os.Exit(8)

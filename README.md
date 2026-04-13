@@ -11,6 +11,7 @@ zcli is a command line interface (CLI) to IBM z/OS REST services, allowing you t
 - **MFS** - List mounted filesystems with optional TUI browser
 - **Software** - Query SMP/E CSI, list software instances, check critical/software/fixcat updates, export, dataset listing
 - **Console** - Issue z/OS console commands with full support for solicited/unsolicited message detection, async mode, custom console names, and console attributes (auth, routcode, mscope, storage, auto); retrieve delayed responses, detection results, and hardcopy logs
+- **Parmlib** - Validate syntax of z/OS parmlib members (all 38 supported types); supports active member validation, specific member, deep LOADxx traversal, and stdin input
 - **TSO** - Issue TSO/E commands
 - **Topology** - List groups, sysplexes, systems; validate system/plex connectivity
 - **Notifications** - List and send z/OSMF notifications
@@ -289,8 +290,29 @@ zcli console get-response -k C6557643 --text
 # Retrieve unsolicited keyword detection result
 zcli console get-detection -k dec6800
 
-# Retrieve hardcopy log entries
-zcli console log --hardcopy OPERLOG --time 2026-03-28T10:00:00Z
+# Retrieve hardcopy log entries (relative time)
+zcli console log --ago 1h --text
+zcli console log --ago 30m --hardcopy OPERLOG --text
+
+# Retrieve hardcopy log entries (absolute time, various formats)
+zcli console log --time "2026-03-28 10:00" --direction forward --text
+zcli console log --time 08:30 --time-range 30m --text
+zcli console log --time 2026-03-28T10:00:00Z --hardcopy SYSLOG --sys-name MAIN
+
+# Validate parmlib syntax (all active members of a type)
+zcli parmlib validate BPXPRM --text
+
+# Validate a specific parmlib member
+zcli parmlib validate BPXPRM --member BPXPRM00 --dataset SYS1.PARMLIB --text
+
+# Validate all members of a type via specific LOADxx
+zcli parmlib validate CONSOL --load-member LOADAC --load-dataset SYS1.PARMLIB --text
+
+# Validate all parmlib types deeply
+zcli parmlib validate LOAD --deep --text
+
+# Validate parmlib content from stdin
+cat /tmp/BPXPRM00 | zcli parmlib validate BPXPRM --text
 
 # Issue a TSO command
 zcli tso command --command 'LISTCAT'
@@ -434,6 +456,33 @@ The `console command` subcommand supports the full z/OSMF REST Console API:
 | `--storage`             | Storage in KB for message queuing (1-2000) |
 | `--auto`                | Automation: YES or NO |
 | `--text`                | Format response as readable text |
+
+## Console log flags
+
+| Flag           | Description                                                                          |
+| -------------- | ------------------------------------------------------------------------------------ |
+| `--ago`        | Start time relative to now: `30s`, `10m`, `2h`, `1h30m` (overrides `--time`)       |
+| `--time`       | Start time: `2006-01-02`, `2006-01-02 15:04`, `15:04`, `15:04:05`, or ISO 8601     |
+| `--timestamp`  | Start time as UNIX timestamp in milliseconds (overrides `--time` and `--ago`)       |
+| `--time-range` | Time range: `nnnu` where u is `s`/`m`/`h` (e.g. `10m`, `1h`, `30s`); default `10m`|
+| `--direction`  | Direction from start time: `forward` or `backward` (default: `backward`)            |
+| `--hardcopy`   | Log source: `operlog` or `syslog` (default: operlog, fallback syslog)               |
+| `--sys-name`   | System name for SYSLOG (only valid with `--hardcopy syslog`)                        |
+| `--text`       | Display messages as formatted text                                                   |
+
+## Parmlib validate flags
+
+| Flag             | Short | Description                                             |
+| ---------------- | ----- | ------------------------------------------------------- |
+| `--member`       | `-m`  | Specific member name to validate (e.g. `BPXPRM01`)     |
+| `--dataset`      |       | Dataset containing the member (e.g. `SYS1.PARMLIB`)    |
+| `--volser`       |       | Volser for dataset if not cataloged                     |
+| `--load-member`  |       | LOADxx member name for type resolution (e.g. `LOADAC`) |
+| `--load-dataset` |       | Dataset containing the LOADxx member                   |
+| `--load-volser`  |       | Volser for load-dataset if not cataloged                |
+| `--deep`         |       | Validate all types deeply — only valid with `LOAD`      |
+| `--system`       |       | Remote system name in the sysplex                       |
+| `--text`         |       | Display the response as formatted text                  |
 
 ## Build
 
