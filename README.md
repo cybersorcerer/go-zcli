@@ -70,16 +70,16 @@ go mod tidy
 Then build:
 
 ```bash
-go build -ldflags '-X main.version=v0.5.0 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .
+go build -ldflags '-X main.version=v0.5.1 -X main.commit=$(git rev-parse --short HEAD)' -o zcli .
 ```
 
 ### GitHub Releases
 
-When a version tag (e.g. `v0.5.0`) is pushed, GitHub Actions automatically builds all platform binaries and creates a release with the artifacts attached.
+When a version tag (e.g. `v0.5.1`) is pushed, GitHub Actions automatically builds all platform binaries and creates a release with the artifacts attached.
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag v0.5.1
+git push origin v0.5.1
 ```
 
 ## Configuration
