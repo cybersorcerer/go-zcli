@@ -1,7 +1,7 @@
 .github/** zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 .vscode/** zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
-cmd/** zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
-internal/** zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
+cmd/** zos-working-tree-encoding=UTF-8 git-encoding=UTF-8
+internal/** zos-working-tree-encoding=UTF-8 git-encoding=UTF-8
 .gitattributes zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 .gitignore zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 .markdownlint.json zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
@@ -9,7 +9,7 @@ CHANGELOG.md zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 go.mod zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 go.sum zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 LICENSE zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
-main.go zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
+main.go zos-working-tree-encoding=UTF-8 git-encoding=UTF-8
 Makefile zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 profiles.yaml zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
 README.md zos-working-tree-encoding=ISO8859-1 git-encoding=ISO8859-1
