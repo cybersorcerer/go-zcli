@@ -196,6 +196,33 @@ zcli datasets read --ds-name 'OLD.DATA' --volser VOL001
 # Read with ENQ lock for editing
 zcli datasets read --ds-name 'MYUSER.DATA' --obtain-enq SHRW
 
+# Write a local file to a sequential dataset
+zcli datasets write --ds-name 'MYUSER.DATA' --local-file data.txt
+
+# Write a local file to a PDS member (creates member if it does not exist)
+zcli datasets write --ds-name 'MYUSER.JCL' --member-name TESTJOB --local-file testjob.jcl
+
+# Write from stdin
+cat modified.txt | zcli datasets write --ds-name 'MYUSER.JCL' --member-name TESTJOB --stdin
+
+# Write binary data
+zcli datasets write --ds-name 'MYUSER.LOAD' --member-name MYPROG --data-type binary --local-file myprog.obj
+
+# Write to uncataloged dataset
+zcli datasets write --ds-name 'OLD.DATA' --volser VOL001 --local-file data.txt
+
+# Atomic exclusive lock/write/unlock (ENQ auto-released after write)
+zcli datasets write --ds-name 'SYS1.PARMLIB' --member-name SMFPRM00 --obtain-enq EXCLU --local-file smfprm00.txt
+
+# Read-modify-write pipeline with ENQ held across steps
+REF=$(zcli datasets read --ds-name 'SYS1.PARMLIB' --member-name SMFPRM00 --obtain-enq EXCLU | grep 'X-IBM-Session-Ref' | awk '{print $2}')
+# ... modify data locally ...
+zcli datasets write --ds-name 'SYS1.PARMLIB' --member-name SMFPRM00 --session-ref "$REF" --release-enq --local-file smfprm00.txt
+
+# Optimistic locking via ETag (rejected with HTTP 412 if modified since read)
+ETAG=$(zcli datasets read --ds-name 'SYS1.PARMLIB' --member-name SMFPRM00 --return-etag | grep 'Etag' | awk '{print $2}')
+zcli datasets write --ds-name 'SYS1.PARMLIB' --member-name SMFPRM00 --if-match "$ETAG" --local-file smfprm00.txt
+
 # Create a PDS
 zcli datasets create --ds-name 'MYUSER.NEW.PDS' --dsorg PO --recfm FB --lrecl 80
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.5.2 - 2026-05-13
+
+### New Features
+
+- **Datasets write**: New `datasets write` command to write data from a local file or stdin to an existing sequential dataset or PDS/PDSE member; creates the member if it does not exist
+- **Datasets write**: Supports all z/OSMF write headers: `X-IBM-Data-Type` (text/binary/record), `X-IBM-Migrated-Recall`, `X-IBM-Obtain-ENQ`, `X-IBM-Session-Ref`, `X-IBM-Release-ENQ`, `X-IBM-Dsname-Encoding`, `If-Match`, `X-IBM-Target-System`/User/Password
+- **Datasets write**: Text mode options: `--file-encoding` (alternate EBCDIC code page), `--crlf` (CRLF terminators), `--wrap` (avoid truncation on F/FB datasets)
+- **Datasets write**: ENQ auto-released at end of request when `--obtain-enq` is specified without `--session-ref` (atomic lock/write/unlock)
+- **Datasets write**: Pipeline support via `--session-ref` + `--release-enq` for read-modify-write flows with ENQ held across multiple commands
+- **Datasets write**: Optimistic locking via `--if-match` (ETag); mutually exclusive with `--obtain-enq`
+- **Datasets write**: Pure ENQ release mode — `--session-ref` + `--release-enq` without content source releases a held ENQ without writing data
+- **Datasets write**: ETag and `X-IBM-Session-Ref` printed from response headers when present
+
 ## v0.5.1 - 2026-04-06
 
 ### New Features

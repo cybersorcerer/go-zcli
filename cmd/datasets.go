@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"zcli/internal/zosmf"
@@ -724,6 +725,204 @@ Example:
 	},
 }
 
+var datasetsWriteCmd = &cobra.Command{
+	Use:   "write",
+	Short: "Write data to a sequential dataset or PDS/PDSE member",
+	Long: `
+DESCRIPTION
+-----------
+Write data to an existing sequential dataset or a member of a PDS or PDSE.
+If the target member does not exist, it will be created. Data is read from
+a local file (--local-file) or from stdin (--stdin).
+
+For uncataloged datasets, specify a volume serial with --volser.
+
+LOCKING
+-------
+Use --obtain-enq to acquire an ENQ lock during the write:
+
+  EXCLU  Exclusive lock: prevents all other readers and writers.
+  SHRW   Shared-write lock: allows concurrent readers.
+
+If --obtain-enq is specified without --session-ref, the ENQ is
+automatically released at the end of the request (atomic lock/write/unlock).
+
+For a read-modify-write pipeline across multiple commands, use --session-ref
+to associate the write with an ENQ that was obtained by a previous
+'datasets read --obtain-enq' call. In that case, use --release-enq to
+release the ENQ explicitly at the end of this write.
+
+OPTIMISTIC LOCKING
+------------------
+As an alternative to ENQ, use --if-match with an ETag obtained from a
+previous 'datasets read --return-etag' call. The write is rejected with
+HTTP 412 if the dataset was modified since the ETag was generated.
+--if-match and --obtain-enq are mutually exclusive.
+
+EXAMPLES
+--------
+  # Simple write from local file
+  zcli datasets write -n SYS1.PARMLIB --member-name SMFPRM00 -f smfprm00.txt
+
+  # Write from stdin
+  cat smfprm00.txt | zcli datasets write -n SYS1.PARMLIB --member-name SMFPRM00 --stdin
+
+  # Read-modify-write pipeline with exclusive ENQ
+  REF=$(zcli datasets read -n SYS1.PARMLIB --member-name SMFPRM00 \
+        --obtain-enq EXCLU | grep X-IBM-Session-Ref | awk '{print $2}')
+  cat modified.txt | zcli datasets write -n SYS1.PARMLIB --member-name SMFPRM00 \
+        --session-ref "$REF" --release-enq --stdin
+
+  # Optimistic locking via ETag
+  ETAG=$(zcli datasets read -n SYS1.PARMLIB --member-name SMFPRM00 --return-etag \
+         | grep Etag | awk '{print $2}')
+  zcli datasets write -n SYS1.PARMLIB --member-name SMFPRM00 \
+        --if-match "$ETAG" -f modified.txt`,
+	Args: cobra.NoArgs,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dsName, _ := cmd.Flags().GetString("ds-name")
+		memberName, _ := cmd.Flags().GetString("member-name")
+		volser, _ := cmd.Flags().GetString("volser")
+		localFile, _ := cmd.Flags().GetString("local-file")
+		fromStdin, _ := cmd.Flags().GetBool("stdin")
+		dataType, _ := cmd.Flags().GetString("data-type")
+		fileEncoding, _ := cmd.Flags().GetString("file-encoding")
+		crlf, _ := cmd.Flags().GetBool("crlf")
+		wrap, _ := cmd.Flags().GetBool("wrap")
+		encoding, _ := cmd.Flags().GetString("encoding")
+		migratedRecall, _ := cmd.Flags().GetString("migrated-recall")
+		obtainEnq, _ := cmd.Flags().GetString("obtain-enq")
+		sessionRef, _ := cmd.Flags().GetString("session-ref")
+		releaseEnq, _ := cmd.Flags().GetBool("release-enq")
+		ifMatch, _ := cmd.Flags().GetString("if-match")
+		contentType, _ := cmd.Flags().GetString("content-type")
+		targetSystem, _ := cmd.Flags().GetString("target-system")
+		targetUser, _ := cmd.Flags().GetString("target-user")
+		targetPassword, _ := cmd.Flags().GetString("target-password")
+
+		if obtainEnq != "" && ifMatch != "" {
+			return fmt.Errorf("--obtain-enq and --if-match are mutually exclusive")
+		}
+
+		// Read body — require content source unless this is a pure ENQ release
+		isPureRelease := sessionRef != "" && releaseEnq && localFile == "" && !fromStdin
+		var data []byte
+		if !isPureRelease {
+			switch {
+			case localFile != "" && fromStdin:
+				return fmt.Errorf("--local-file and --stdin are mutually exclusive")
+			case localFile != "":
+				var err error
+				data, err = os.ReadFile(localFile)
+				if err != nil {
+					return fmt.Errorf("failed to read file %q: %w", localFile, err)
+				}
+			case fromStdin:
+				var err error
+				data, err = io.ReadAll(os.Stdin)
+				if err != nil {
+					return fmt.Errorf("failed to read stdin: %w", err)
+				}
+			default:
+				return fmt.Errorf("specify --local-file <path> or --stdin (or --session-ref + --release-enq to only release an ENQ)")
+			}
+		}
+
+		// Build URL path
+		path := "/restfiles/ds"
+		if volser != "" {
+			path += fmt.Sprintf("/-(%s)", volser)
+		}
+		path += fmt.Sprintf("/%s", dsName)
+		if memberName != "" {
+			path += fmt.Sprintf("(%s)", memberName)
+		}
+
+		// Build X-IBM-Data-Type value
+		dataTypeHeader := dataType
+		if dataType == "text" {
+			var opts []string
+			if fileEncoding != "" {
+				opts = append(opts, "fileEncoding="+fileEncoding)
+			}
+			if crlf {
+				opts = append(opts, "crlf=true")
+			}
+			if wrap {
+				opts = append(opts, "wrap=true")
+			}
+			if len(opts) > 0 {
+				dataTypeHeader = "text;" + strings.Join(opts, ";")
+			}
+		}
+
+		// Auto Content-Type
+		if contentType == "" {
+			switch dataType {
+			case "binary", "record":
+				contentType = "application/octet-stream"
+			default:
+				contentType = "text/plain; charset=UTF-8"
+			}
+		}
+
+		headers := map[string]string{
+			"X-IBM-Data-Type": dataTypeHeader,
+			"Content-Type":    contentType,
+		}
+		if encoding != "" {
+			headers["X-IBM-Dsname-Encoding"] = encoding
+		}
+		if migratedRecall != "" {
+			headers["X-IBM-Migrated-Recall"] = migratedRecall
+		}
+		if obtainEnq != "" {
+			headers["X-IBM-Obtain-ENQ"] = obtainEnq
+			// No --session-ref: atomic lock/write/unlock in one request
+			if sessionRef == "" {
+				headers["X-IBM-Release-ENQ"] = "true"
+			}
+		}
+		if sessionRef != "" {
+			headers["X-IBM-Session-Ref"] = sessionRef
+		}
+		if releaseEnq {
+			headers["X-IBM-Release-ENQ"] = "true"
+		}
+		if ifMatch != "" {
+			headers["If-Match"] = ifMatch
+		}
+		if targetSystem != "" {
+			headers["X-IBM-Target-System"] = targetSystem
+		}
+		if targetUser != "" && targetPassword != "" {
+			headers["X-IBM-Target-System-User"] = targetUser
+			headers["X-IBM-Target-System-Password"] = targetPassword
+		}
+
+		client := Profile.NewZosmfClient()
+		resp, err := client.Put(path, data, headers)
+		if err != nil {
+			return err
+		}
+		if apiErr := zosmf.CheckResponse(resp, 200, 201, 204); apiErr != nil {
+			fmt.Fprintln(os.Stderr, apiErr)
+			os.Exit(8)
+		}
+
+		if etag := resp.Headers.Get("Etag"); etag != "" {
+			fmt.Println("Etag:", etag)
+		}
+		if ref := resp.Headers.Get("X-IBM-Session-Ref"); ref != "" {
+			fmt.Println("X-IBM-Session-Ref:", ref)
+		}
+		if resp.StatusCode == 201 {
+			fmt.Println("Member created.")
+		}
+		return nil
+	},
+}
+
 func init() {
 	// datasets list
 	datasetsListCmd.Flags().String("dsn-level", "", "A dataset level to list. DEFAULT <USERID>.**")
@@ -859,9 +1058,32 @@ func init() {
 	datasetsUtilitiesCmd.AddCommand(datasetsCopyCmd)
 	datasetsUtilitiesCmd.AddCommand(datasetsAmsCmd)
 
+	// datasets write
+	datasetsWriteCmd.Flags().StringP("ds-name", "n", "", "The dataset name.")
+	datasetsWriteCmd.MarkFlagRequired("ds-name")
+	datasetsWriteCmd.Flags().String("member-name", "", "Member name for PDS/PDSE write (creates member if it does not exist).")
+	datasetsWriteCmd.Flags().StringP("volser", "v", "", "Volume serial for uncataloged datasets.")
+	datasetsWriteCmd.Flags().StringP("local-file", "f", "", "Local file to upload as dataset content.")
+	datasetsWriteCmd.Flags().Bool("stdin", false, "Read content from stdin.")
+	datasetsWriteCmd.Flags().String("data-type", "text", "Data type: text, binary, or record.")
+	datasetsWriteCmd.Flags().String("file-encoding", "", "EBCDIC code page for text mode, e.g. IBM-1141 (default IBM-1047).")
+	datasetsWriteCmd.Flags().Bool("crlf", false, "Use CRLF line terminators instead of LF (text mode only).")
+	datasetsWriteCmd.Flags().Bool("wrap", false, "Wrap data for F/FB datasets to avoid truncation (text mode only).")
+	datasetsWriteCmd.Flags().StringP("encoding", "e", "", "Dataset/member name codepage (X-IBM-Dsname-Encoding).")
+	datasetsWriteCmd.Flags().String("migrated-recall", "", "Migrated dataset handling: wait, nowait, or error.")
+	datasetsWriteCmd.Flags().String("obtain-enq", "", "Acquire ENQ for this write: EXCLU or SHRW. Auto-released unless --session-ref is set.")
+	datasetsWriteCmd.Flags().String("session-ref", "", "Session reference from a previous obtain-enq response (pipeline use).")
+	datasetsWriteCmd.Flags().Bool("release-enq", false, "Release ENQ held by the session-ref address space after this write.")
+	datasetsWriteCmd.Flags().String("if-match", "", "ETag for conditional write — rejected with HTTP 412 if dataset was modified. Mutually exclusive with --obtain-enq.")
+	datasetsWriteCmd.Flags().String("content-type", "", "Override Content-Type header (default: auto-detected from --data-type).")
+	datasetsWriteCmd.Flags().String("target-system", "", "Target system nickname (X-IBM-Target-System).")
+	datasetsWriteCmd.Flags().String("target-user", "", "User ID for the target system.")
+	datasetsWriteCmd.Flags().String("target-password", "", "Password for the target system user.")
+
 	datasetsCmd.AddCommand(datasetsListCmd)
 	datasetsCmd.AddCommand(datasetsMembersCmd)
 	datasetsCmd.AddCommand(datasetsReadCmd)
+	datasetsCmd.AddCommand(datasetsWriteCmd)
 	datasetsCmd.AddCommand(datasetsCreateCmd)
 	datasetsCmd.AddCommand(datasetsDeleteCmd)
 	datasetsCmd.AddCommand(datasetsUtilitiesCmd)

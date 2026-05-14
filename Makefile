@@ -2,7 +2,7 @@ BINARY_NAME := zcli
 BINARY_DIR  := bin
 INSTALL_DIR := $(HOME)/bin
 
-VERSION := v0.5.1
+VERSION := v0.5.2
 COMMIT  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS := -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
